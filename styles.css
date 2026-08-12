@@ -1,0 +1,98 @@
+.aiproofreaderreport-filterbar {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.aiproofreaderreport-filterrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+}
+
+.aiproofreaderreport-filteritem {
+    display: flex;
+    flex-direction: column;
+    min-width: 160px;
+}
+
+.aiproofreaderreport-filteritem label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+}
+
+.aiproofreaderreport-filterhint {
+    font-size: 0.8rem;
+    color: #6c757d;
+    padding-top: 0.4rem;
+}
+
+.aiproofreaderreport-filterbuttons {
+    flex-direction: row;
+    align-items: center;
+}
+
+.aiproofreaderreport-table {
+    width: 100%;
+}
+
+.aiproofreaderreport-table th {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 1;
+}
+
+/* Collapsible admin settings sections (settings.php). */
+.aiproofreaderreport-settingsgroup-wrap {
+    max-width: 900px;
+}
+
+.aiproofreaderreport-settingsgroup {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    padding: 0.25rem 1rem 1rem 1rem;
+}
+
+.aiproofreaderreport-settingsgroup > summary {
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 0.75rem 0;
+}
+
+.aiproofreaderreport-settingsgroup-body {
+    padding-top: 0.5rem;
+}
+
+.aiproofreaderreport-settingsgroup-row {
+    padding: 0.5rem 0;
+    border-top: 1px solid #f1f1f1;
+}
+
+.aiproofreaderreport-settingsgroup-row label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.aiproofreaderreport-settingsgroup-row input[type="text"] {
+    max-width: 100%;
+    width: 100%;
+}
+
+.aiproofreaderreport-settingsgroup-desc {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.aiproofreaderreport-subheading {
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+}
