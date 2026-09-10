@@ -31,7 +31,6 @@ namespace local_aiproofreaderreport;
  * Catalog of every field the anonymized export can include.
  */
 class export_field_catalog {
-
     /** @var string Safe for aggregate/summary use; not deselected by the Privacy button. */
     const CATEGORY_STRUCTURAL = 'structural';
 
@@ -101,7 +100,7 @@ class export_field_catalog {
         // regardless of whether the contacts table exists.
         $catalog['user_studentemail'] = self::entry('user', 'email', self::CATEGORY_PII, 'user_studentemail');
 
-	// Aiproofreader_submission. Note: sub_initialtext/sub_finaltext	
+        // Aiproofreader_submission. Note: sub_initialtext/sub_finaltext	
         // source from the *redacted* columns (initialtextredacted /
         // finaltextredacted), not the raw initialtext/finaltext - those are
         // the AI de-identified copies meant for release. They stay null
