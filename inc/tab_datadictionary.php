@@ -35,7 +35,11 @@ echo html_writer::link(
 );
 
 $table = new html_table();
-$table->head = ['Table', 'Field', 'Description'];
+$table->head = [
+    get_string('datadictionary_col_table', 'local_aiproofreaderreport'),
+    get_string('datadictionary_col_field', 'local_aiproofreaderreport'),
+    get_string('datadictionary_col_description', 'local_aiproofreaderreport'),
+];
 $table->attributes['class'] = 'generaltable aiproofreaderreport-table';
 foreach (report_manager::get_data_dictionary() as $entry) {
     $table->data[] = $entry;

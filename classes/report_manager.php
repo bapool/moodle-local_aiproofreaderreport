@@ -16,8 +16,6 @@
 
 namespace local_aiproofreaderreport;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * All data-access logic for the AI Proofreader report lives here.
  *
@@ -446,12 +444,14 @@ class report_manager {
             [
                 'aiproofreader_submission',
                 'feedbackaimodel',
-                'Label identifying the AI model/provider that generated the feedback (site-configured, plus provider-reported detail when available).',
+                'Label identifying the AI model/provider that generated the feedback ' .
+                    '(site-configured, plus provider-reported detail when available).',
             ],
             [
                 'aiproofreader_submission',
                 'comparisonaimodel',
-                'Label identifying the AI model/provider that generated the comparison (site-configured, plus provider-reported detail when available).',
+                'Label identifying the AI model/provider that generated the comparison ' .
+                    '(site-configured, plus provider-reported detail when available).',
             ],
             ['aiproofreader_studentsurvey', 'q1overallfeedback', '1-5: overall feedback useful.'],
             ['aiproofreader_studentsurvey', 'q2specificfeedback', '1-5: assignment-specific feedback useful.'],
@@ -496,6 +496,7 @@ class report_manager {
             'teachersurvey' => 'ts',
             'contacts'      => 'c',
             'user'          => 'u',
+            'aiproofreader' => 'ap',
         ];
 
         $selects = ['s.id AS __submissionid', 'u.idnumber AS __idnumber'];
@@ -507,7 +508,7 @@ class report_manager {
             }
             $field = $catalog[$key];
             if ($field['table'] === 'computed') {
-                // anonid - not a SQL column, computed by the caller from __idnumber.
+                // Anonid - not a SQL column, computed by the caller from __idnumber.
                 continue;
             }
             $alias = $tablealias[$field['table']];
@@ -530,6 +531,7 @@ class report_manager {
         [$insql, $inparams] = $DB->get_in_or_equal($scopeuserids, SQL_PARAMS_NAMED);
 
         $joins = 'JOIN {user} u ON u.id = s.userid
+             LEFT JOIN {aiproofreader} ap ON ap.id = s.aiproofreaderid
              LEFT JOIN {aiproofreader_grade} g ON g.submissionid = s.id
              LEFT JOIN {aiproofreader_studentsurvey} ss ON ss.submissionid = s.id
              LEFT JOIN {aiproofreader_teachersurvey} ts ON ts.submissionid = s.id';

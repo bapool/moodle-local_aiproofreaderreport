@@ -27,8 +27,9 @@
 
 namespace local_aiproofreaderreport;
 
-defined('MOODLE_INTERNAL') || die();
-
+/**
+ * Catalog of every field the anonymized export can include.
+ */
 class export_field_catalog {
 
     /** @var string Safe for aggregate/summary use; not deselected by the Privacy button. */
@@ -61,7 +62,7 @@ class export_field_catalog {
      * The full field catalog, keyed by a stable field key used everywhere
      * else (checkbox names, export column selection, etc).
      *
-     * @return array[] Each entry: table, column, category, label.
+     * @return array[] Each entry: table, column, category, subgroup, label.
      */
     public static function get_catalog() {
         $catalog = [];
@@ -100,7 +101,7 @@ class export_field_catalog {
         // regardless of whether the contacts table exists.
         $catalog['user_studentemail'] = self::entry('user', 'email', self::CATEGORY_PII, 'user_studentemail');
 
-        // aiproofreader_submission. Note: sub_initialtext/sub_finaltext
+	// Aiproofreader_submission. Note: sub_initialtext/sub_finaltext	
         // source from the *redacted* columns (initialtextredacted /
         // finaltextredacted), not the raw initialtext/finaltext - those are
         // the AI de-identified copies meant for release. They stay null
@@ -109,7 +110,7 @@ class export_field_catalog {
         $submissionfields = [
             'sub_status'                 => ['status', self::CATEGORY_STRUCTURAL],
             'sub_initialsubmissiontype'  => ['initialsubmissiontype', self::CATEGORY_STRUCTURAL],
-            'sub_initialtext'            => ['initialtextredacted', self::CATEGORY_PII],
+            'sub_initialtext'            => ['initialtextredacted', self::CATEGORY_STRUCTURAL],
             'sub_initialgdrivelink'      => ['initialgdrivelink', self::CATEGORY_PII],
             'sub_initialtimesubmitted'   => ['initialtimesubmitted', self::CATEGORY_STRUCTURAL],
             'sub_feedbackgrammar'        => ['feedbackgrammar', self::CATEGORY_STRUCTURAL],
@@ -117,7 +118,7 @@ class export_field_catalog {
             'sub_feedbacktimecreated'    => ['feedbacktimecreated', self::CATEGORY_STRUCTURAL],
             'sub_feedbackaimodel'        => ['feedbackaimodel', self::CATEGORY_STRUCTURAL],
             'sub_finalsubmissiontype'    => ['finalsubmissiontype', self::CATEGORY_STRUCTURAL],
-            'sub_finaltext'              => ['finaltextredacted', self::CATEGORY_PII],
+            'sub_finaltext'              => ['finaltextredacted', self::CATEGORY_STRUCTURAL],
             'sub_finalgdrivelink'        => ['finalgdrivelink', self::CATEGORY_PII],
             'sub_finaltimesubmitted'     => ['finaltimesubmitted', self::CATEGORY_STRUCTURAL],
             'sub_aicomparison'           => ['aicomparison', self::CATEGORY_STRUCTURAL],
@@ -131,7 +132,7 @@ class export_field_catalog {
             $catalog[$key] = self::entry('submission', $def[0], $def[1], $key);
         }
 
-        // aiproofreader_grade.
+        // Aiproofreader_grade.
         $gradefields = [
             'grade_graderid'            => ['graderid', self::CATEGORY_PII],
             'grade_grade'               => ['grade', self::CATEGORY_STRUCTURAL],
@@ -142,7 +143,7 @@ class export_field_catalog {
             $catalog[$key] = self::entry('grade', $def[0], $def[1], $key);
         }
 
-        // aiproofreader_studentsurvey.
+        // Aiproofreader_studentsurvey.
         $studentsurveyfields = [
             'ssurvey_q1overallfeedback'   => ['q1overallfeedback', self::CATEGORY_STRUCTURAL],
             'ssurvey_q2specificfeedback'  => ['q2specificfeedback', self::CATEGORY_STRUCTURAL],
@@ -156,7 +157,7 @@ class export_field_catalog {
             $catalog[$key] = self::entry('studentsurvey', $def[0], $def[1], $key);
         }
 
-        // aiproofreader_teachersurvey.
+        // Aiproofreader_teachersurvey.
         $teachersurveyfields = [
             'tsurvey_q1overallfeedback'   => ['q1overallfeedback', self::CATEGORY_STRUCTURAL],
             'tsurvey_q2specificfeedback'  => ['q2specificfeedback', self::CATEGORY_STRUCTURAL],
@@ -171,7 +172,7 @@ class export_field_catalog {
             $catalog[$key] = self::entry('teachersurvey', $def[0], $def[1], $key);
         }
 
-        // contacts tag fields - only added if the table actually exists on
+        // Contacts tag fields - only added if the table actually exists on
         // this install. Homeroom, Locker, and Combination are deliberately
         // left out: not relevant to writing-feedback reporting.
         if (self::contacts_table_exists()) {
@@ -188,6 +189,26 @@ class export_field_catalog {
                 $catalog[$key] = self::entry('contacts', $def[0], $def[1], $key);
             }
         }
+
+        // aiproofreader (the activity instance itself) - shared across every
+        // submission for that activity, not student-specific. Grouped under
+        // the Demographic/program tags column, in their own subsection,
+        // since like a tag this is descriptive context rather than a
+        // student response.
+        $catalog['ap_instructions'] = self::entry(
+            'aiproofreader',
+            'intro',
+            self::CATEGORY_TAG,
+            'ap_instructions',
+            'assignmentspecifics'
+        );
+        $catalog['ap_aiinstructions'] = self::entry(
+            'aiproofreader',
+            'aiinstructions',
+            self::CATEGORY_TAG,
+            'ap_aiinstructions',
+            'assignmentspecifics'
+        );
 
         return $catalog;
     }
@@ -218,11 +239,12 @@ class export_field_catalog {
      * @param string $key Catalog key, used to build the language string id.
      * @return array
      */
-    protected static function entry($table, $column, $category, $key) {
+    protected static function entry($table, $column, $category, $key, $subgroup = null) {
         return [
             'table'    => $table,
             'column'   => $column,
             'category' => $category,
+            'subgroup' => $subgroup,
             'label'    => get_string('exportfield_' . $key, 'local_aiproofreaderreport'),
         ];
     }

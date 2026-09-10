@@ -43,7 +43,6 @@ if ($hassiteconfig) {
     );
 
     if ($ADMIN->fulltree) {
-
         // Section 1: report scope (which students count as "in scope").
         // Stored under this plugin's own component.
         $reportsettings->add(new \local_aiproofreaderreport\admin_setting_fieldgroup(

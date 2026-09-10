@@ -22,10 +22,10 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
- * @param int $oldversion
+ * Upgrade steps for local_aiproofreaderreport.
+ *
+ * @param int $oldversion The version we are upgrading from.
  * @return bool
  */
 function xmldb_local_aiproofreaderreport_upgrade($oldversion) {

@@ -16,8 +16,6 @@
 
 namespace local_aiproofreaderreport;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Renders a whole group of settings (checkboxes, text fields, and plain
  * sub-heading dividers) as ONE admin_setting, wrapped in a native

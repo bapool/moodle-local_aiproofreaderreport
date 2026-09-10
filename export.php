@@ -55,7 +55,7 @@ if ($type === 'anonexport') {
         throw new moodle_exception('anonexport_nofields', 'local_aiproofreaderreport');
     }
 
-    // mod_aiproofreader owns the anonid computation (it's the plugin that
+    // Mod_aiproofreader owns the anonid computation (it's the plugin that
     // "keeps track of the users") - pull in its lib.php explicitly since a
     // plain global function isn't autoloaded across plugins.
     require_once($CFG->dirroot . '/mod/aiproofreader/lib.php');

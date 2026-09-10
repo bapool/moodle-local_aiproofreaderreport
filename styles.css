@@ -128,6 +128,19 @@
     font-weight: normal;
 }
 
+.aiproofreaderreport-exportfield-subgroupdivider {
+    margin: 0.75rem 0 0.5rem;
+    border: none;
+    border-top: 1px solid #f1f1f1;
+}
+
+.aiproofreaderreport-exportfieldcolumn h6 {
+    margin-top: 0;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
+    color: #555;
+}
+
 .aiproofreaderreport-exportfieldbuttons {
     margin: 0.75rem 0;
 }

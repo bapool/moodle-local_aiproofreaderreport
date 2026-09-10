@@ -25,10 +25,10 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_aiproofreaderreport';
-$plugin->version   = 2026091002;      // YYYYMMDDXX.
+$plugin->version   = 2026091402;      // YYYYMMDDXX.
 $plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = 'v0.5.1';
+$plugin->maturity  = MATURITY_BETA;
+$plugin->release   = 'v0.6.1';
 
 // This plugin is the admin control surface for mod_aiproofreader (survey
 // on/off, question wording, data collection settings) and reports on its

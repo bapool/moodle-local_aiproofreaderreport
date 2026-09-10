@@ -45,7 +45,7 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
         export_field_catalog::CATEGORY_STRUCTURAL => [],
     ];
     foreach ($catalog as $key => $field) {
-        $bycategory[$field['category']][$key] = $field['label'];
+        $bycategory[$field['category']][$key] = $field;
     }
 
     $exporturl = new moodle_url('/local/aiproofreaderreport/export.php', ['type' => 'anonexport']);
@@ -103,34 +103,58 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
         export_field_catalog::CATEGORY_STRUCTURAL => 'anonexport_columnheading_structural',
     ];
 
+    $renderfieldrow = function ($key, $label, $category) use ($privacydefaultkeys) {
+        $checkboxclass = 'aiproofreaderreport-exportfield-checkbox';
+        if ($category === export_field_catalog::CATEGORY_PII) {
+            $checkboxclass .= ' aiproofreaderreport-exportfield-pii';
+        }
+        $checked = !in_array($key, $privacydefaultkeys, true);
+        $attributes = [
+            'type' => 'checkbox',
+            'name' => 'fields[]',
+            'value' => $key,
+            'id' => 'aiproofreaderreport-field-' . $key,
+            'class' => $checkboxclass,
+        ];
+        if ($checked) {
+            $attributes['checked'] = 'checked';
+        }
+        echo html_writer::start_div('aiproofreaderreport-exportfieldrow');
+        echo html_writer::empty_tag('input', $attributes);
+        echo html_writer::tag(
+            'label',
+            $label,
+            ['for' => 'aiproofreaderreport-field-' . $key]
+        );
+        echo html_writer::end_div();
+    };
+
     foreach ($columns as $category => $headingstringkey) {
         echo html_writer::start_div('aiproofreaderreport-exportfieldcolumn');
         echo html_writer::tag('h5', get_string($headingstringkey, 'local_aiproofreaderreport'));
-        foreach ($bycategory[$category] as $key => $label) {
-            $checkboxclass = 'aiproofreaderreport-exportfield-checkbox';
-            if ($category === export_field_catalog::CATEGORY_PII) {
-                $checkboxclass .= ' aiproofreaderreport-exportfield-pii';
+
+        $maingroup = [];
+        $subgroups = [];
+        foreach ($bycategory[$category] as $key => $field) {
+            if (!empty($field['subgroup'])) {
+                $subgroups[$field['subgroup']][$key] = $field['label'];
+            } else {
+                $maingroup[$key] = $field['label'];
             }
-            $checked = !in_array($key, $privacydefaultkeys, true);
-            $attributes = [
-                'type' => 'checkbox',
-                'name' => 'fields[]',
-                'value' => $key,
-                'id' => 'aiproofreaderreport-field-' . $key,
-                'class' => $checkboxclass,
-            ];
-            if ($checked) {
-                $attributes['checked'] = 'checked';
-            }
-            echo html_writer::start_div('aiproofreaderreport-exportfieldrow');
-            echo html_writer::empty_tag('input', $attributes);
-            echo html_writer::tag(
-                'label',
-                $label,
-                ['for' => 'aiproofreaderreport-field-' . $key]
-            );
-            echo html_writer::end_div();
         }
+
+        foreach ($maingroup as $key => $label) {
+            $renderfieldrow($key, $label, $category);
+        }
+
+        foreach ($subgroups as $subgroupkey => $fields) {
+            echo html_writer::empty_tag('hr', ['class' => 'aiproofreaderreport-exportfield-subgroupdivider']);
+            echo html_writer::tag('h6', get_string('anonexport_subgroupheading_' . $subgroupkey, 'local_aiproofreaderreport'));
+            foreach ($fields as $key => $label) {
+                $renderfieldrow($key, $label, $category);
+            }
+        }
+
         echo html_writer::end_div();
     }
 

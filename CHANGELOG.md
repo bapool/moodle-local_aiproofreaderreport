@@ -2,6 +2,24 @@
 
 All notable changes to `local_aiproofreaderreport` are documented here.
 
+## v0.6.1 - 2026-09-14
+
+### Fixed
+- Added missing `LICENSE` file (GNU GPL v3 text) to the plugin root, required by the Moodle Plugins directory review.
+- Added the required Privacy API implementation (`classes/privacy/provider.php`), using the null provider since this plugin stores no personal data of its own.
+- Data Dictionary tab's table headers ("Table", "Field", "Description") were hard-coded instead of using `get_string()`; now pull from three new language strings so the labels can be translated.
+- Removed the manual `$PAGE->requires->css('/local/aiproofreaderreport/styles.css')` calls in `index.php` and `settings.php` — Moodle already auto-loads a plugin's `styles.css`, so this was redundant.
+- Cleaned up all `moodle-plugin-ci phpcs` findings: removed unnecessary `MOODLE_INTERNAL` checks from several class files, wrapped over-length lines, capitalized inline comments, added a missing class docblock, fixed a blank-line-after-brace and a blank-line-at-start-of-control-structure, and fully re-sorted the language file's string keys into the alphabetical order the Moodle coding standard requires.
+- Added a "Moodle.org marketplace listing" section to the README with ready-to-copy short/full descriptions, to keep the plugin directory listing aligned with the actual README.
+
+## v0.6.0 - 2026-09-14
+
+### Added
+- Anonymized export can now include the activity's own "Assignment instructions" and "AI instructions" (mod_aiproofreader's `intro`/`aiinstructions` fields) - shared context across all submissions for that activity, not student-specific. These appear in the Demographic/program tags column, under a new "Assignment Submission Specifics" divider/subheading, and are checked by default.
+ 
+### Changed
+- The "Draft submission text (de-identified)" and "Final submission text (de-identified)" export fields moved from the "Personally identifying (off by default)" column to "Submission & feedback data" and are now checked by default, since they're the de-identified copies these settings exist to produce in the first place. The "Privacy defaults" button no longer deselects them.
+
 ## v0.5.1 - 2026-09-10
 
 ### Changed

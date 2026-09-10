@@ -43,13 +43,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_sesskey();
 
 if (empty($_FILES['optoutfile']) || $_FILES['optoutfile']['error'] !== UPLOAD_ERR_OK) {
-    redirect($returnurl, get_string('optout_uploaderror', 'local_aiproofreaderreport'), null, \core\output\notification::NOTIFY_ERROR);
+    redirect($returnurl, get_string('optout_uploaderror', 'local_aiproofreaderreport'), null,
+        \core\output\notification::NOTIFY_ERROR);
 }
 
 $tmppath = $_FILES['optoutfile']['tmp_name'];
 $handle = fopen($tmppath, 'r');
 if ($handle === false) {
-    redirect($returnurl, get_string('optout_uploaderror', 'local_aiproofreaderreport'), null, \core\output\notification::NOTIFY_ERROR);
+    redirect($returnurl, get_string('optout_uploaderror', 'local_aiproofreaderreport'), null,
+        \core\output\notification::NOTIFY_ERROR);
 }
 
 $studentnumbers = [];

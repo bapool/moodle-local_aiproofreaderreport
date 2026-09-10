@@ -16,8 +16,6 @@
 
 namespace local_aiproofreaderreport\task;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Weekly cleanup of stale mod_aiproofreader data: submissions left behind
  * by activities that no longer exist, and submissions belonging to deleted
@@ -48,7 +46,7 @@ class cleanup_stale_data extends \core\task\scheduled_task {
         global $DB;
 
         if (!$DB->get_manager()->table_exists('aiproofreader')) {
-            // mod_aiproofreader isn't installed (shouldn't happen given the
+            // Mod_aiproofreader isn't installed (shouldn't happen given the
             // plugin dependency, but this task must never fatal error).
             return;
         }

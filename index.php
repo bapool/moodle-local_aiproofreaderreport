@@ -41,14 +41,13 @@ $PAGE->set_context($context);
 $PAGE->set_pagelayout('report');
 $PAGE->set_title(get_string('pagetitle', 'local_aiproofreaderreport'));
 $PAGE->set_heading(get_string('pageheading', 'local_aiproofreaderreport'));
-$PAGE->requires->css('/local/aiproofreaderreport/styles.css');
 
 $filters = report_manager::get_filters_from_request();
 
 echo $OUTPUT->header();
 echo html_writer::tag('h2', get_string('pageheading', 'local_aiproofreaderreport'));
 
-// ── Tabs ─────────────────────────────────────────────────────────────────
+// Tabs.
 $tabdefs = [
     'overview' => 'tab_overview',
     'studentsurvey' => 'tab_studentsurvey',
@@ -66,12 +65,12 @@ foreach ($tabdefs as $tabid => $stringkey) {
 }
 print_tabs([$tabobjects], $tab);
 
-// ── Filter bar (shared across all tabs; datadictionary/anonexport ignore it) ──
+// Filter bar, shared across all tabs; datadictionary/anonexport ignore it.
 if (!in_array($tab, ['datadictionary', 'anonexport'], true)) {
     require(__DIR__ . '/inc/filter_bar.php');
 }
 
-// ── Tab content ──────────────────────────────────────────────────────────
+// Tab content.
 require(__DIR__ . '/inc/tab_' . $tab . '.php');
 
 echo $OUTPUT->footer();

@@ -2,6 +2,28 @@
 
 An admin/manager-facing analytics report for **mod_aiproofreader** (AI Proofreader), built for National Trail Local Schools.
 
+## Moodle.org marketplace listing
+
+**Short description:**
+
+> Admin analytics report for AI Proofreader (mod_aiproofreader): usage, survey scores, and reimbursement tracking scoped to Middle and High School students.
+
+**Full description:**
+
+> AI Proofreader Report is an admin/manager-facing companion report for the AI Proofreader (mod_aiproofreader) activity module. It stores no data of its own — it reads directly from mod_aiproofreader's existing tables — and gives site administrators and managers a single place to see how the activity is being used across every course.
+>
+> Requires mod_aiproofreader to already be installed; this plugin will not install or upgrade without it.
+>
+> Accessible under Site administration → Reports → AI Proofreader Report, with six tabs:
+>
+> - **Overview** — which teachers are using AI Proofreader, in which courses, and enrolled/submitted/finished/graded counts per activity.
+> - **Student Survey** and **Teacher Survey** — average score and response count per survey question.
+> - **Reimbursement** — count of graded activities per teacher within a chosen date range, for stipend/reimbursement purposes.
+> - **Data Dictionary** — a downloadable CSV reference of every field the report reads.
+> - **Anonymized Export** — de-identified student data export for research or third-party sharing, with an opt-out roster import and a field picker that defaults to excluding personally identifying columns.
+>
+> All report data is scoped to Middle School and High School students only, via two admin-configurable management course IDs. The plugin also provides a single settings page for controlling mod_aiproofreader's survey system site-wide — turning surveys on/off, showing or hiding individual questions, editing their wording, and tracking which AI model/provider generated each piece of feedback.
+
 This plugin does **not** store any data of its own — it reads directly from the existing `mod_aiproofreader` tables and reports on usage across every course, scoped to Middle School and High School students only.
 
 ## Requirements
