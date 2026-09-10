@@ -100,7 +100,7 @@ class export_field_catalog {
         // regardless of whether the contacts table exists.
         $catalog['user_studentemail'] = self::entry('user', 'email', self::CATEGORY_PII, 'user_studentemail');
 
-        // Aiproofreader_submission. Note: sub_initialtext/sub_finaltext	
+        // Aiproofreader_submission. Note: sub_initialtext/sub_finaltext
         // source from the *redacted* columns (initialtextredacted /
         // finaltextredacted), not the raw initialtext/finaltext - those are
         // the AI de-identified copies meant for release. They stay null
@@ -189,7 +189,7 @@ class export_field_catalog {
             }
         }
 
-        // aiproofreader (the activity instance itself) - shared across every
+        // Aiproofreader (the activity instance itself) - shared across every
         // submission for that activity, not student-specific. Grouped under
         // the Demographic/program tags column, in their own subsection,
         // since like a tag this is descriptive context rather than a
