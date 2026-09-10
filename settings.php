@@ -43,7 +43,6 @@ if ($hassiteconfig) {
     );
 
     if ($ADMIN->fulltree) {
-        $PAGE->requires->css('/local/aiproofreaderreport/styles.css');
 
         // Section 1: report scope (which students count as "in scope").
         // Stored under this plugin's own component.

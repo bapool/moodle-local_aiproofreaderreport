@@ -469,4 +469,130 @@ class report_manager {
             ['aiproofreader_grade', 'timemodified', 'Unix timestamp the grade was last saved (used for reimbursement counts).'],
         ];
     }
+
+    /**
+     * Builds and runs the anonymized-export join query, selecting only the
+     * columns needed for the caller's chosen fields (plus two internal-only
+     * columns, __submissionid and __idnumber, always included so the caller
+     * can compute the anonymous ID). Fields with an unrecognized key are
+     * silently skipped rather than erroring, so a stale checkbox value from
+     * an old page load can never break the export.
+     *
+     * Scoped to the same MS/HS enrolled students as every other tab
+     * (see get_scope_userids()) - no opt-out roster filtering yet, that's
+     * a separate feature still to be built.
+     *
+     * @param string[] $selectedkeys Catalog keys the caller wants included.
+     * @return \moodle_recordset
+     */
+    public static function get_anonexport_recordset(array $selectedkeys): \moodle_recordset {
+        global $DB;
+
+        $catalog = export_field_catalog::get_catalog();
+        $tablealias = [
+            'submission'    => 's',
+            'grade'         => 'g',
+            'studentsurvey' => 'ss',
+            'teachersurvey' => 'ts',
+            'contacts'      => 'c',
+            'user'          => 'u',
+        ];
+
+        $selects = ['s.id AS __submissionid', 'u.idnumber AS __idnumber'];
+        $needcontacts = false;
+
+        foreach ($selectedkeys as $key) {
+            if (!isset($catalog[$key])) {
+                continue;
+            }
+            $field = $catalog[$key];
+            if ($field['table'] === 'computed') {
+                // anonid - not a SQL column, computed by the caller from __idnumber.
+                continue;
+            }
+            $alias = $tablealias[$field['table']];
+            $selects[] = "$alias.{$field['column']} AS $key";
+            if ($field['table'] === 'contacts') {
+                $needcontacts = true;
+            }
+        }
+
+        $scopeuserids = self::get_scope_userids();
+        if (empty($scopeuserids)) {
+            // No HS/MS course configured - nothing is in scope. Return an
+            // empty recordset rather than an unfiltered (unscoped) query.
+            return $DB->get_recordset_sql('SELECT s.id AS __submissionid, u.idnumber AS __idnumber
+                                              FROM {aiproofreader_submission} s
+                                              JOIN {user} u ON u.id = s.userid
+                                             WHERE 1 = 0');
+        }
+
+        [$insql, $inparams] = $DB->get_in_or_equal($scopeuserids, SQL_PARAMS_NAMED);
+
+        $joins = 'JOIN {user} u ON u.id = s.userid
+             LEFT JOIN {aiproofreader_grade} g ON g.submissionid = s.id
+             LEFT JOIN {aiproofreader_studentsurvey} ss ON ss.submissionid = s.id
+             LEFT JOIN {aiproofreader_teachersurvey} ts ON ts.submissionid = s.id';
+
+        if ($needcontacts && export_field_catalog::contacts_table_exists()) {
+            // StudentNumber is stored as bigint in contacts but idnumber is
+            // varchar in Moodle's user table - cast so the join works
+            // regardless of driver-specific implicit conversion behaviour.
+            $joins .= "\n             LEFT JOIN {contacts} c ON " . $DB->sql_cast_char2int('u.idnumber') . ' = c.StudentNumber';
+        }
+
+        $sql = 'SELECT ' . implode(",\n                   ", $selects) . "
+                  FROM {aiproofreader_submission} s
+                  $joins
+                 WHERE s.userid $insql
+                   AND u.idnumber NOT IN (SELECT studentnumber FROM {local_aiproofreaderreport_optout})
+              ORDER BY s.id ASC";
+
+        return $DB->get_recordset_sql($sql, $inparams);
+    }
+
+    /**
+     * Replaces the entire opt-out roster with a new list of student
+     * numbers. A full replace (not a merge) - each import represents the
+     * current, complete roster from the district's ParentSquare process, so
+     * a student who re-consents simply won't appear in the next upload.
+     *
+     * @param string[] $studentnumbers
+     * @param int $importedby userid of the admin running the import.
+     * @return int Number of rows saved.
+     */
+    public static function save_optout_roster(array $studentnumbers, int $importedby): int {
+        global $DB;
+
+        $studentnumbers = array_values(array_unique(array_filter(array_map('trim', $studentnumbers), function ($v) {
+            return $v !== '';
+        })));
+
+        $DB->delete_records('local_aiproofreaderreport_optout');
+
+        $now = time();
+        $records = [];
+        foreach ($studentnumbers as $studentnumber) {
+            $records[] = (object) [
+                'studentnumber' => $studentnumber,
+                'timecreated'   => $now,
+                'importedby'    => $importedby,
+            ];
+        }
+        if (!empty($records)) {
+            $DB->insert_records('local_aiproofreaderreport_optout', $records);
+        }
+
+        return count($records);
+    }
+
+    /**
+     * Current opt-out roster size, for display next to the import button.
+     *
+     * @return int
+     */
+    public static function get_optout_roster_count(): int {
+        global $DB;
+        return $DB->count_records('local_aiproofreaderreport_optout');
+    }
 }

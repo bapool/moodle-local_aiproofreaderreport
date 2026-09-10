@@ -25,6 +25,7 @@
 require_once(__DIR__ . '/../../config.php');
 
 use local_aiproofreaderreport\report_manager;
+use local_aiproofreaderreport\export_field_catalog;
 
 $type = required_param('type', PARAM_ALPHA);
 
@@ -48,9 +49,53 @@ if ($type === 'datadictionary') {
 
 if ($type === 'anonexport') {
     require_capability('local/aiproofreaderreport:export', $context);
-    // Not yet implemented — see README/CHANGELOG. Field selection and PII
-    // scrubbing logic will be added here in a future version.
-    throw new moodle_exception('anonexport_notice', 'local_aiproofreaderreport');
+
+    $selectedkeys = optional_param_array('fields', [], PARAM_ALPHANUMEXT);
+    if (empty($selectedkeys)) {
+        throw new moodle_exception('anonexport_nofields', 'local_aiproofreaderreport');
+    }
+
+    // mod_aiproofreader owns the anonid computation (it's the plugin that
+    // "keeps track of the users") - pull in its lib.php explicitly since a
+    // plain global function isn't autoloaded across plugins.
+    require_once($CFG->dirroot . '/mod/aiproofreader/lib.php');
+
+    $catalog = export_field_catalog::get_catalog();
+    // Output columns follow the catalog's own order, restricted to keys
+    // that were both selected and still exist in the catalog (a stale
+    // checkbox from an old page load is simply dropped, not an error).
+    $orderedkeys = array_values(array_intersect(array_keys($catalog), $selectedkeys));
+    if (empty($orderedkeys)) {
+        throw new moodle_exception('anonexport_nofields', 'local_aiproofreaderreport');
+    }
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="aiproofreader_anonymized_export_' . date('Ymd_His') . '.csv"');
+
+    $handle = fopen('php://output', 'w');
+
+    $headerrow = [];
+    foreach ($orderedkeys as $key) {
+        $headerrow[] = $catalog[$key]['label'];
+    }
+    fputcsv($handle, $headerrow);
+
+    $rs = report_manager::get_anonexport_recordset($orderedkeys);
+    foreach ($rs as $row) {
+        $csvrow = [];
+        foreach ($orderedkeys as $key) {
+            if ($key === 'anonid') {
+                $csvrow[] = aiproofreader_get_anon_id($row->__idnumber ?? '');
+            } else {
+                $csvrow[] = $row->$key ?? '';
+            }
+        }
+        fputcsv($handle, $csvrow);
+    }
+    $rs->close();
+
+    fclose($handle);
+    exit;
 }
 
 throw new moodle_exception('invalidparameter', 'debug');

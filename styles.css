@@ -96,3 +96,58 @@
     margin-top: 1rem;
     margin-bottom: 0.25rem;
 }
+
+/* Anonymized export field picker (tab_anonexport.php). */
+.aiproofreaderreport-exportfieldcolumns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin: 1rem 0;
+}
+
+.aiproofreaderreport-exportfieldcolumn {
+    flex: 1 1 260px;
+    min-width: 220px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+}
+
+.aiproofreaderreport-exportfieldcolumn h5 {
+    margin-top: 0;
+    border-bottom: 1px solid #f1f1f1;
+    padding-bottom: 0.4rem;
+}
+
+.aiproofreaderreport-exportfieldrow {
+    padding: 0.2rem 0;
+}
+
+.aiproofreaderreport-exportfieldrow label {
+    margin-left: 0.4rem;
+    font-weight: normal;
+}
+
+.aiproofreaderreport-exportfieldbuttons {
+    margin: 0.75rem 0;
+}
+
+.aiproofreaderreport-topbuttonrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+}
+
+.aiproofreaderreport-optoutform {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.aiproofreaderreport-optoutcount {
+    font-size: 0.85rem;
+    color: #6c757d;
+}

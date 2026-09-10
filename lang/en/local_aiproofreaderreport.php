@@ -125,6 +125,83 @@ $string['datadictionary_download'] = 'Download data dictionary (CSV)';
 
 // Anonymized export tab.
 $string['anonexport_intro'] = 'Export de-identified student data for sharing with a third party.';
-$string['anonexport_notice'] = 'This feature is not yet built. When ready, it will strip student identity (assigning a fresh anonymous ID each export) and scrub PII from submission and feedback text, and let you choose which fields to include.';
+$string['anonexport_nocontacts'] = 'The district contacts table was not found on this install, so grade level, IEP/504/Lunch/Gifted, and other contacts-sourced fields are not available to export here.';
+$string['anonexport_privacybutton'] = 'Privacy defaults (deselect PII)';
+$string['anonexport_downloadbutton'] = 'Download CSV';
+$string['anonexport_columnheading_pii'] = 'Personally identifying (off by default)';
+$string['anonexport_columnheading_tag'] = 'Demographic / program tags';
+$string['anonexport_columnheading_structural'] = 'Submission & feedback data';
+$string['anonexport_nofields'] = 'Choose at least one field to export.';
+$string['optout_importbutton'] = 'Import opt-out roster';
+$string['optout_rostercount'] = '{$a} student(s) currently opted out';
+$string['optout_uploaderror'] = 'The CSV file could not be read. Please try again.';
+$string['optout_importsuccess'] = 'Opt-out roster updated: {$a} student(s) will now be excluded from the export.';
+
+// Export field catalog - submission fields.
+$string['exportfield_sub_status'] = 'Submission status';
+$string['exportfield_sub_initialsubmissiontype'] = 'Draft submission type';
+$string['exportfield_sub_initialtext'] = 'Draft submission text (de-identified)';
+$string['exportfield_sub_initialgdrivelink'] = 'Draft Google Drive link';
+$string['exportfield_sub_initialtimesubmitted'] = 'Draft submitted time';
+$string['exportfield_sub_feedbackgrammar'] = 'AI feedback: grammar and spelling';
+$string['exportfield_sub_feedbackassignment'] = 'AI feedback: assignment specifics';
+$string['exportfield_sub_feedbacktimecreated'] = 'Feedback generated time';
+$string['exportfield_sub_feedbackaimodel'] = 'Feedback AI model';
+$string['exportfield_sub_finalsubmissiontype'] = 'Final submission type';
+$string['exportfield_sub_finaltext'] = 'Final submission text (de-identified)';
+$string['exportfield_sub_finalgdrivelink'] = 'Final Google Drive link';
+$string['exportfield_sub_finaltimesubmitted'] = 'Final submitted time';
+$string['exportfield_sub_aicomparison'] = 'AI feedback-followed analysis';
+$string['exportfield_sub_aicomparisontimecreated'] = 'Comparison generated time';
+$string['exportfield_sub_comparisonaimodel'] = 'Comparison AI model';
+$string['exportfield_sub_aifollowedscore'] = 'Feedback-followed score (1-5)';
+$string['exportfield_sub_timecreated'] = 'Submission record created';
+$string['exportfield_sub_timemodified'] = 'Submission record modified';
+
+// Export field catalog - grade fields.
+$string['exportfield_grade_graderid'] = 'Grading teacher';
+$string['exportfield_grade_grade'] = 'Grade (points)';
+$string['exportfield_grade_instructorcomments'] = 'Instructor comments';
+$string['exportfield_grade_timemodified'] = 'Grade last modified';
+
+// Export field catalog - student survey fields.
+$string['exportfield_ssurvey_q1overallfeedback'] = 'Student survey: overall feedback useful';
+$string['exportfield_ssurvey_q2specificfeedback'] = 'Student survey: assignment-specific feedback useful';
+$string['exportfield_ssurvey_q3usedfeedback'] = 'Student survey: used feedback to improve';
+$string['exportfield_ssurvey_q4categoryhelped'] = 'Student survey: which category helped';
+$string['exportfield_ssurvey_q5confidence'] = 'Student survey: confidence in final vs draft';
+$string['exportfield_ssurvey_freetext'] = 'Student survey: free-text comments';
+$string['exportfield_ssurvey_timecreated'] = 'Student survey submitted time';
+
+// Export field catalog - teacher survey fields.
+$string['exportfield_tsurvey_q1overallfeedback'] = 'Teacher survey: overall feedback useful';
+$string['exportfield_tsurvey_q2specificfeedback'] = 'Teacher survey: assignment-specific feedback useful';
+$string['exportfield_tsurvey_q3usedfeedback'] = 'Teacher survey: student used feedback';
+$string['exportfield_tsurvey_q4feedbackfollowed'] = 'Teacher survey: feedback was followed';
+$string['exportfield_tsurvey_q5aiscaffold'] = 'Teacher survey: AI helped scaffold the student';
+$string['exportfield_tsurvey_q6aiaccuracy'] = 'Teacher survey: AI feedback was accurate';
+$string['exportfield_tsurvey_freetext'] = 'Teacher survey: free-text comments';
+$string['exportfield_tsurvey_timecreated'] = 'Teacher survey submitted time';
+
+// Export field catalog - contacts fields.
+$string['exportfield_contact_gradelevel'] = 'Grade level';
+$string['exportfield_contact_iep'] = 'IEP';
+$string['exportfield_contact_504'] = '504';
+$string['exportfield_contact_lunch'] = 'Lunch (free lunch program)';
+$string['exportfield_contact_gifted'] = 'Gifted';
+$string['exportfield_contact_gender'] = 'Gender';
+$string['exportfield_contact_ethnicity'] = 'Ethnicity';
+$string['exportfield_contact_lastname'] = 'Last name';
+$string['exportfield_contact_firstname'] = 'First name';
+$string['exportfield_contact_city'] = 'City';
+$string['exportfield_contact_state'] = 'State';
+$string['exportfield_contact_studentnumber'] = 'Student number (SSID)';
+$string['exportfield_user_studentemail'] = 'Student email';
+$string['exportfield_contact_schoolyear'] = 'School year';
+$string['exportfield_contact_schoolcode'] = 'School code';
+$string['exportfield_contact_districtid'] = 'District ID';
+$string['exportfield_contact_schoolid'] = 'School ID';
+$string['exportfield_contact_studentstatus'] = 'Student status';
+$string['exportfield_anonid'] = 'Anonymous student ID';
 
 $string['privacy:metadata'] = 'The AI Proofreader Report plugin does not store any personal data itself. It only displays and exports aggregated or de-identified data already stored by mod_aiproofreader.';
