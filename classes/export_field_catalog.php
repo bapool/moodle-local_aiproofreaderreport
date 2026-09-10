@@ -237,6 +237,7 @@ class export_field_catalog {
      * @param string $column Column name in that source table.
      * @param string $category One of the CATEGORY_* constants.
      * @param string $key Catalog key, used to build the language string id.
+     * @param string|null $subgroup Optional subgroup key, used to divide fields within a column.
      * @return array
      */
     protected static function entry($table, $column, $category, $key, $subgroup = null) {
