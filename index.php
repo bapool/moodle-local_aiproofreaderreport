@@ -15,62 +15,73 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Main report page for local_aiproofreaderreport.
+ * Lists all AI Proofreader activities in a course.
  *
- * @package    local_aiproofreaderreport
+ * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once(__DIR__ . '/../../config.php');
+require_once('../../config.php');
+require_once($CFG->dirroot . '/mod/aiproofreader/lib.php');
 
-use local_aiproofreaderreport\report_manager;
+$id = required_param('id', PARAM_INT);
 
-$tab = optional_param('tab', 'overview', PARAM_ALPHA);
-$validtabs = ['overview', 'studentsurvey', 'teachersurvey', 'reimbursement', 'datadictionary', 'anonexport'];
-if (!in_array($tab, $validtabs, true)) {
-    $tab = 'overview';
-}
+$course = $DB->get_record('course', ['id' => $id], '*', MUST_EXIST);
 
-require_login();
-$context = context_system::instance();
-require_capability('local/aiproofreaderreport:view', $context);
+require_course_login($course);
 
-$PAGE->set_url(new moodle_url('/local/aiproofreaderreport/index.php', ['tab' => $tab]));
+$context = context_course::instance($course->id);
+
+$event = \mod_aiproofreader\event\course_module_instance_list_viewed::create([
+    'context' => $context,
+    'courseid' => $course->id,
+]);
+$event->add_record_snapshot('course', $course);
+$event->trigger();
+
+$PAGE->set_url('/mod/aiproofreader/index.php', ['id' => $id]);
+$PAGE->set_title(format_string($course->shortname) . ': ' . get_string('modulenameplural', 'aiproofreader'));
+$PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
-$PAGE->set_pagelayout('report');
-$PAGE->set_title(get_string('pagetitle', 'local_aiproofreaderreport'));
-$PAGE->set_heading(get_string('pageheading', 'local_aiproofreaderreport'));
-
-$filters = report_manager::get_filters_from_request();
 
 echo $OUTPUT->header();
-echo html_writer::tag('h2', get_string('pageheading', 'local_aiproofreaderreport'));
+echo $OUTPUT->heading(get_string('modulenameplural', 'aiproofreader'));
 
-// Tabs.
-$tabdefs = [
-    'overview' => 'tab_overview',
-    'studentsurvey' => 'tab_studentsurvey',
-    'teachersurvey' => 'tab_teachersurvey',
-    'reimbursement' => 'tab_reimbursement',
-    'datadictionary' => 'tab_datadictionary',
-    'anonexport' => 'tab_anonexport',
-];
+$aiproofreaders = get_all_instances_in_course('aiproofreader', $course);
 
-$tabobjects = [];
-foreach ($tabdefs as $tabid => $stringkey) {
-    $taburl = new moodle_url('/local/aiproofreaderreport/index.php', ['tab' => $tabid]);
-    $tablabel = get_string($stringkey, 'local_aiproofreaderreport');
-    $tabobjects[] = new tabobject($tabid, $taburl, $tablabel);
-}
-print_tabs([$tabobjects], $tab);
-
-// Filter bar, shared across all tabs; datadictionary/anonexport ignore it.
-if (!in_array($tab, ['datadictionary', 'anonexport'], true)) {
-    require(__DIR__ . '/inc/filter_bar.php');
+if (empty($aiproofreaders)) {
+    notice(get_string('noaiproofreaders', 'aiproofreader'), new moodle_url('/course/view.php', ['id' => $course->id]));
 }
 
-// Tab content.
-require(__DIR__ . '/inc/tab_' . $tab . '.php');
+$usesections = course_format_uses_sections($course->format);
 
+$headings = [get_string('name')];
+if ($usesections) {
+    array_unshift($headings, get_string('sectionname', 'format_' . $course->format));
+}
+
+$table = new html_table();
+$table->attributes['class'] = 'generaltable mod_index';
+$table->head = $headings;
+
+foreach ($aiproofreaders as $aiproofreader) {
+    $link = html_writer::link(
+        new moodle_url('/mod/aiproofreader/view.php', ['id' => $aiproofreader->coursemodule]),
+        format_string($aiproofreader->name)
+    );
+
+    if (!$aiproofreader->visible) {
+        $link = html_writer::tag('span', $link, ['class' => 'dimmed']);
+    }
+
+    $row = [$link];
+    if ($usesections) {
+        array_unshift($row, get_section_name($course, $aiproofreader->section));
+    }
+
+    $table->data[] = $row;
+}
+
+echo html_writer::table($table);
 echo $OUTPUT->footer();

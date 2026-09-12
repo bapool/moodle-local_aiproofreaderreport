@@ -15,17 +15,13 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for mod_aiproofreader.
+ * Restore settings for mod_aiproofreader.
  *
  * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'mod_aiproofreader';
-$plugin->version   = 2026091200;      // YYYYMMDDXX.
-$plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.5.2';
+// This module has no special settings for restore.
+// This file is required by the restore framework even when empty.

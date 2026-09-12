@@ -1,149 +1,177 @@
-# local_aiproofreaderreport
+# AI Proofreader
 
-An admin/manager-facing analytics report for **mod_aiproofreader** (AI Proofreader), built for National Trail Local Schools.
+An activity module for Moodle 4.5 that gives students AI-generated writing feedback on a draft before they submit a final version, then helps the teacher grade with the full picture: draft, feedback, final, and an AI comparison of whether the feedback was actually followed.
 
-## Moodle.org marketplace listing
+Built for National Trail Local Schools as part of the K-12 AI Infrastructure Program grant, focused on formative writing feedback in ELA, Science, and Social Studies (grades 5-12, though it works for any grade level from 3-12).
 
-**Short description:**
+## How it works
 
-> Admin analytics report for AI Proofreader (mod_aiproofreader): usage, survey scores, and reimbursement tracking scoped to Middle and High School students.
-
-**Full description:**
-
-> AI Proofreader Report is an admin/manager-facing companion report for the AI Proofreader (mod_aiproofreader) activity module. It stores no data of its own — it reads directly from mod_aiproofreader's existing tables — and gives site administrators and managers a single place to see how the activity is being used across every course.
->
-> Requires mod_aiproofreader to already be installed; this plugin will not install or upgrade without it.
->
-> Accessible under Site administration → Reports → AI Proofreader Report, with six tabs:
->
-> - **Overview** — which teachers are using AI Proofreader, in which courses, and enrolled/submitted/finished/graded counts per activity.
-> - **Student Survey** and **Teacher Survey** — average score and response count per survey question.
-> - **Reimbursement** — count of graded activities per teacher within a chosen date range, for stipend/reimbursement purposes.
-> - **Data Dictionary** — a downloadable CSV reference of every field the report reads.
-> - **Anonymized Export** — de-identified student data export for research or third-party sharing, with an opt-out roster import and a field picker that defaults to excluding personally identifying columns.
->
-> All report data is scoped to Middle School and High School students only, via two admin-configurable management course IDs. The plugin also provides a single settings page for controlling mod_aiproofreader's survey system site-wide — turning surveys on/off, showing or hiding individual questions, editing their wording, and tracking which AI model/provider generated each piece of feedback.
-
-This plugin does **not** store any data of its own — it reads directly from the existing `mod_aiproofreader` tables and reports on usage across every course, scoped to Middle School and High School students only.
+1. The teacher creates an AI Proofreader activity with assignment instructions, a grade level, and optional additional AI instructions (a private field only the AI sees - useful for a rubric's key points or specific concepts a strong answer should cover).
+2. The student submits a draft (typed text, an uploaded Word document, a pasted Google Drive link, or a Google Doc selected directly from their Drive via the file picker).
+3. The AI generates feedback split into two parts: **Grammar and Spelling**, and **Assignment Specifics** - calibrated to the student's grade level and target reading level (Lexile).
+4. If surveys are turned on (see below), the student completes a short survey, then submits a final version. If surveys are off, the student just submits a final version.
+5. The AI compares the draft, the feedback, and the final version, and generates a 1-5 score for the teacher on how well the student incorporated the feedback - weighted so it doesn't penalize students for skipping feedback that was optional depth versus something that was actually required.
+6. The teacher reviews everything (draft, feedback, final, AI comparison, and the student's survey answers if surveys are on), completes a short survey of their own if surveys are on, and enters a grade.
 
 ## Requirements
 
-Requires **mod_aiproofreader** already installed (declared as a hard plugin dependency — this plugin will not install or upgrade without it, since it exists to configure and report on it).
+- Moodle 4.5 or later
+- Moodle's core AI subsystem configured with a working AI provider (the plugin calls `core_ai\aiactions\generate_text` - it does not talk to any AI service directly)
 
-## What it shows
+## Installation
 
-Accessible under **Site administration → Reports → AI Proofreader Report**.
+1. Copy the `aiproofreader` folder into `mod/` in your Moodle codebase.
+2. Visit **Site Administration -> Notifications** to complete the install.
+3. Optionally review **Site Administration -> Plugins -> Activity modules -> AI Proofreader** to adjust the default AI instructions (the base proofreading philosophy and response format sent to the AI for every instance on the site).
+4. Install **local_aiproofreaderreport** (a separate, required companion plugin - see its own README) to turn on surveys, customize survey questions, control Google Doc text retention, and see usage/survey reporting. AI Proofreader will not install without it already present, or upgrade past it.
 
-- **Overview** — which teachers are using AI Proofreader, in which courses, how many students are enrolled/submitted/finished/graded per activity.
-- **Student Survey** — average score and response count per student survey question, plus a breakdown of which feedback category students found more helpful.
-- **Teacher Survey** — average score and response count per teacher survey question.
-- **Reimbursement** — count of graded AI Proofreader activities per teacher within a chosen date range, for stipend/reimbursement purposes.
-- **Data Dictionary** — downloadable CSV reference of every field this report reads.
-- **Anonymized Export** — placeholder for a future de-identified student data export (see "Planned: anonymized export" below).
+## Settings overview
 
-All report tabs (except Data Dictionary and Anonymized Export) share one filter bar: course, teacher, grade level, group (once a course is selected), and a date range.
+Each activity instance has its own:
+- **Assignment instructions** - shown to students, and used as the primary instructions sent to the AI
+- **Additional AI instructions** - never shown to students; use this for rubric basics or specific concepts a strong response should cover
+- **Additional files** - optional attachments (e.g. a lab sheet) shown to students alongside the instructions
+- **Grade level** - a combined grade + target Lexile dropdown (3-12), used to calibrate the AI's vocabulary and complexity
+- **Submission types** - online text, Word file upload, and/or Google Drive (a pasted link, or a Google Doc picked directly from Drive via the file picker - either satisfies this type) (at least one required)
+- Standard availability, grade (points, category, pass grade), and completion settings
 
-Averages on the Student Survey and Teacher Survey tabs only count questions that actually have an answer — a question that's been turned off (see below) doesn't drag the average down as a zero.
+When adding a brand-new activity, teachers can also optionally **import from an existing Assignment** in the same course - a dropdown and "Load" button prefill the name, description, dates, grade, grade category, and completion settings from it. The dropdown defaults to showing only Assignments in the section the new activity is being added to (a checkbox lets a teacher broaden it to the whole course - after changing it, click "Load" once to refresh the list, even with nothing selected yet). Saving then automatically positions the new activity directly after the source Assignment, copies its Restrict Access conditions, and hides the source Assignment from students (it isn't deleted).
 
-## Survey & data settings
+Site-wide, controlled from this plugin's own settings (Site administration -> Plugins -> Activity modules -> AI Proofreader):
+- **PII redaction** - off by default. When enabled, a nightly scheduled task creates a de-identified copy of each not-yet-processed draft/final submission, for safer use when releasing student writing publicly (see Known limitations for details). A batch size setting bounds how many submissions of each type it will process per run.
 
-The **Survey & data settings** section of the plugin's settings page (Site administration → Plugins → Local plugins → AI Proofreader Report settings) controls `mod_aiproofreader` itself:
+Site-wide, controlled from **local_aiproofreaderreport**'s settings (not from this plugin):
+- **Survey on/off** - off by default. While off, no survey questions are shown to anyone, and this plugin runs in feedback-only mode.
+- **Per-question show/hide and custom wording** - for each of the 5 student and 6 teacher survey questions (plus each side's free-text box).
+- **Google Doc text retention** - off by default. The text of a submitted Google Doc is always fetched briefly so the AI can process it, then cleared back to just the link afterward unless this is turned on.
 
-- **Turn on student and teacher surveys** — off by default. While off, AI Proofreader shows no survey questions to anyone and runs in feedback-only mode. There's no point collecting survey data with no plugin installed to see it, so nothing is collected until this is on.
-- **Retain Google Doc text** — off by default. A submitted Google Doc's text is always fetched briefly so the AI can generate feedback/comparison, but is cleared back to just the stored link afterward unless this is on. Turn it on if you need the actual submitted text for data export/research — a bare link isn't usable research data.
-- **Current AI model label** — a free-text label (e.g. "GPT-4o", "Claude Sonnet 4.5") describing whichever AI provider/model the site currently has configured. See "AI model tracking" below.
-- **Per-question controls** — for each of the 5 student questions, 6 teacher questions, and each side's free-text box: a show/hide checkbox and an editable wording field. Unchecking a question stops it from being asked and stops it from being collected at all; the original wording is the default and can be edited back at any time.
+## Accessibility
 
-These settings are stored under `mod_aiproofreader`'s own config (component `aiproofreader`), not this plugin's — this is just where they're edited.
+The activity description and each AI feedback section (Grammar and Spelling, Assignment Specifics, AI notes on your revision) include a "Read aloud" button that uses the student's own browser's built-in text-to-speech engine (the Web Speech API) - no server-side audio generation, external AI provider, or file storage involved. Voice quality depends on the browser/OS; the buttons hide themselves automatically on browsers with no speech synthesis support.
 
-## AI model tracking
+## Known limitations
 
-Every AI Proofreader submission records which AI model/provider generated its feedback and its comparison (`feedbackaimodel`, `comparisonaimodel` on `aiproofreader_submission`), shown in the Overview tab's "AI model(s) used" column.
+- No automated PHPUnit or Behat tests.
+- The "Hide grader identity from students" setting is stored but not yet enforced anywhere in the UI, since nothing currently displays grader identity to students in the first place.
+- Google Drive submissions made by pasting a link require the document to be shared as "Anyone with the link can view" (or comment/edit) - the plugin cannot read privately-shared docs and will reject the submission at the form-validation stage if it can't read the content. This sharing requirement does not apply when the student instead selects the doc via the Google Drive file picker, since that downloads a copy through the student's own authenticated Drive connection rather than fetching a public export link.
+- Google Docs selected via the file picker are downloaded as `.docx` at submission time (governed by the site's Google Drive repository configuration, under Site Administration -> Plugins -> Repositories); no live link back to the original Doc is stored, so `initialgdrivelink`/`finalgdrivelink` stay empty for submissions made this way.
+- A draft that's abandoned before final submission (student never finishes) can leave fetched Google Doc text sitting in `initialtext` even with text retention off, since that text is only purged once the final-submission AI comparison step runs. The weekly cleanup task in local_aiproofreaderreport will eventually remove the whole submission row if the activity or student account is later deleted, but does not otherwise sweep abandoned drafts on a timer.
+- The 3-sentence minimum on draft submissions only applies to the online text type (a simple terminal-punctuation heuristic on the plain-text-converted content) - file uploads and Google Drive links aren't length-checked at submission time.
+- Assignment Import doesn't carry over the grade if the source Assignment uses a grading scale instead of points - AI Proofreader only supports point grading, so the maximum grade is left at its default and needs setting manually in that case.
+- The nightly PII redaction task's output is AI-generated and not guaranteed to be complete or accurate - it can miss a name, or occasionally over-redact something that isn't actually personal information (e.g. an unusual word it mistakes for a name). It is not a substitute for a human review pass before any writing is actually published; the stored per-submission placeholder count is meant as a quick spot-check aid, not a guarantee.
 
-Moodle's AI subsystem doesn't reliably report which model actually answered a request — that depends entirely on the provider plugin, and it's inconsistent across providers. So the reliable source is the **Current AI model label** setting above: whatever you type there gets stamped onto every submission's feedback and comparison at the moment they're generated. If a provider happens to also report its own model identifier in the response, that's appended automatically in parentheses as a bonus detail — but the setting is what you can actually count on.
+## License
 
-**Update this label whenever the site's AI provider/model configuration changes** — e.g. once a quarter, if that's the cadence you're comparing student/teacher preference across. Since the label is stamped at generation time, older submissions keep whatever label was set when they were generated; you don't need to (and can't) retroactively relabel past data.
+GNU GPL v3 or later. See <http://www.gnu.org/copyleft/gpl.html>.
 
-## Scheduled cleanup
+## Author
 
-A weekly scheduled task (`local_aiproofreaderreport\task\cleanup_stale_data`, Sundays 2 AM by default) removes AI Proofreader submissions — and their survey/grade/file data — left behind by deleted activities or deleted user accounts, so the database doesn't slowly fill with data nothing can reference anymore. This is a safety net on top of the mod's own course-reset and activity-delete cleanup, for data orphaned some other way. Adjust the schedule under **Site administration → Server → Scheduled tasks**, or run it manually:
+Brian Pool
 
-```
-php admin/cli/scheduled_task.php --execute='\local_aiproofreaderreport\task\cleanup_stale_data'
-```
+---
 
-## Scope: MS/HS only
-
-"In scope" means a student is enrolled in either the High School or Middle School **management course**, whose course IDs are set under the plugin's settings page (Site administration → Plugins → Local plugins → AI Proofreader Report settings). Defaults match `mod_mtssdashboard`'s convention: HS = 53, MS = 54. Elementary students are excluded because they are not enrolled in either management course.
-
-## Permissions
-
-- `local/aiproofreaderreport:view` — Managers and Site Administrators. Grants access to all report tabs and the data dictionary download.
-- `local/aiproofreaderreport:export` — no role has this by default; only Site Administrators (via the built-in "doanything" override) can use it. This will gate the anonymized student data export once it's built.
-
-## Planned: anonymized export
-
-Not implemented in this version. When built, it will:
-- Generate a fresh anonymous student ID each export run (no persistent identity mapping is kept between exports).
-- Strip PII (student names and other identifying text) out of submission and feedback text, not just replace the student ID.
-- Let the site admin choose which fields to include per export.
-
-## Database dictionary (tables this plugin reads)
-
-All tables below belong to `mod_aiproofreader`; this plugin creates no tables of its own.
+## Database dictionary
 
 ### `aiproofreader`
-| Field | Description |
-|---|---|
-| id | Unique ID of the activity instance |
-| course | Course ID the activity belongs to |
-| name | Assignment name |
-| gradelevel | Target grade level (3-12) for AI feedback tone/lexile |
-| grade | Maximum points for the activity |
+One row per activity instance.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | int | Primary key |
+| `course` | int | Course ID (FK to `course`) |
+| `name` | char(255) | Assignment name |
+| `intro` | text | Assignment instructions - shown to students, sent to the AI as the primary instructions |
+| `introformat` | int | Format of `intro` |
+| `allowsubmissionsfromdate` | int | Unix timestamp, 0 = not set |
+| `duedate` | int | Unix timestamp, 0 = not set |
+| `cutoffdate` | int | Unix timestamp, 0 = not set |
+| `gradelevel` | char(2) | Grade level 3-12; also used to look up the target Lexile band via a fixed table in `lib.php` |
+| `aiinstructions` | text | Additional AI-only instructions from the teacher - never shown to students |
+| `aiinstructionsformat` | int | Format of `aiinstructions` |
+| `submtext` | int(1) | 1 if online text submission is enabled |
+| `submfile` | int(1) | 1 if Word file submission is enabled |
+| `submgdrive` | int(1) | 1 if Google Drive link submission is enabled |
+| `grade` | int | Maximum points for this activity |
+| `hidegrader` | int(1) | Hide grader identity from students (stored; not yet enforced anywhere) |
+| `completionsubmit` | int(1) | 1 if completion requires a final submission |
+| `timecreated` | int | Unix timestamp |
+| `timemodified` | int | Unix timestamp |
 
 ### `aiproofreader_submission`
-| Field | Description |
-|---|---|
-| id | Unique ID of the submission row (one per student per activity) |
-| aiproofreaderid | Links to the aiproofreader activity instance |
-| userid | Student user ID |
-| status | draft, feedbackpending, feedbackready, finalsubmitted, graded |
-| initialtimesubmitted | Unix timestamp of the draft submission |
-| finaltimesubmitted | Unix timestamp of the final submission |
-| feedbackaimodel | Label identifying the AI model/provider that generated the feedback - see "AI model tracking" below |
-| comparisonaimodel | Label identifying the AI model/provider that generated the comparison - see "AI model tracking" below |
-| aifollowedscore | 1-5 AI-generated score of how well feedback was followed |
+One row per student per activity instance (no multiple attempts). Unique on (`aiproofreaderid`, `userid`).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | int | Primary key |
+| `aiproofreaderid` | int | FK to `aiproofreader` |
+| `userid` | int | FK to `user` - the student |
+| `status` | char(20) | `draft`, `feedbackpending`, `feedbackready`, `finalsubmitted`, or `graded` |
+| `initialsubmissiontype` | char(10) | `text`, `file`, or `gdrive` |
+| `initialtext` | text | Draft text - typed directly, extracted from an uploaded Word file, fetched from a pasted Google Drive link, or extracted from a Google Doc selected via the file picker |
+| `initialtextredacted` | text | AI-redacted, de-identified copy of `initialtext`, populated by the nightly PII redaction task (off by default) - never overwrites the original |
+| `initialtextredactedat` | int(10) | When `initialtextredacted` was generated; null means not yet processed |
+| `initialtextpiicount` | int(10) | Number of PII placeholders inserted into `initialtextredacted` |
+| `initialgdrivelink` | char(255) | Draft Google Drive link, only populated when that submission was made by pasting a link (empty when made via the Google Drive file picker instead) |
+| `initialtimesubmitted` | int | Unix timestamp |
+| `feedbackgrammar` | text | AI feedback: Grammar and Spelling |
+| `feedbackassignment` | text | AI feedback: Assignment Specifics |
+| `feedbacktimecreated` | int | Unix timestamp |
+| `feedbackaimodel` | char(255) | Label identifying the AI model/provider that generated the feedback - see "AI model tracking" below |
+| `finalsubmissiontype` | char(10) | `text`, `file`, or `gdrive` |
+| `finaltext` | text | Final text, same sourcing as `initialtext` |
+| `finaltextredacted` | text | AI-redacted, de-identified copy of `finaltext` - see `initialtextredacted` above |
+| `finaltextredactedat` | int(10) | When `finaltextredacted` was generated; null means not yet processed |
+| `finaltextpiicount` | int(10) | Number of PII placeholders inserted into `finaltextredacted` |
+| `finalgdrivelink` | char(255) | Final Google Drive link, only populated when that submission was made by pasting a link (empty when made via the Google Drive file picker instead) |
+| `finaltimesubmitted` | int | Unix timestamp |
+| `aicomparison` | text | AI's narrative comparison of draft vs. feedback vs. final, shown to both student and teacher |
+| `aicomparisontimecreated` | int | Unix timestamp |
+| `comparisonaimodel` | char(255) | Label identifying the AI model/provider that generated the comparison - see "AI model tracking" below |
+| `aifollowedscore` | int(2) | AI-generated 1-5 score of how well the student incorporated the feedback - teacher-only |
+| `timecreated` | int | Unix timestamp |
+| `timemodified` | int | Unix timestamp |
 
 ### `aiproofreader_studentsurvey`
-Any field below may be `null` if that question has been individually disabled in survey settings, or if the whole survey system is off.
+One row per submission. Required before a final submission is accepted. Unique on `submissionid`.
 
-| Field | Description |
-|---|---|
-| q1overallfeedback | 1-5: overall feedback useful |
-| q2specificfeedback | 1-5: assignment-specific feedback useful |
-| q3usedfeedback | 1-5: used feedback to improve submission |
-| q4categoryhelped | grammar, assignment, or both |
-| q5confidence | 1-5: confidence in final vs. draft |
+| Field | Type | Description |
+|---|---|---|
+| `id` | int | Primary key |
+| `submissionid` | int | FK to `aiproofreader_submission` |
+| `q1overallfeedback` | int(2) | 1-5: was the overall feedback useful |
+| `q2specificfeedback` | int(2) | 1-5: was the assignment-specific feedback useful |
+| `q3usedfeedback` | int(2) | 1-5: did you use the feedback to improve your submission |
+| `q4categoryhelped` | char(10) | `grammar`, `assignment`, or `both` - which feedback category helped more |
+| `q5confidence` | int(2) | 1-5: confidence in the final version compared to the draft |
+| `freetext` | text | Optional: what the AI feedback missed |
+| `timecreated` | int | Unix timestamp |
 
 ### `aiproofreader_teachersurvey`
-Any field below may be `null` if that question has been individually disabled in survey settings, or if the whole survey system is off.
+One row per submission. Required before a grade is accepted. Unique on `submissionid`.
 
-| Field | Description |
-|---|---|
-| q1overallfeedback | 1-5: overall feedback useful |
-| q2specificfeedback | 1-5: assignment-specific feedback useful |
-| q3usedfeedback | 1-5: did student use the feedback |
-| q4feedbackfollowed | 1-5: was the feedback followed |
-| q5aiscaffold | 1-5: did the AI help scaffold the student |
-| q6aiaccuracy | 1-5: was AI feedback accurate for this assignment |
+| Field | Type | Description |
+|---|---|---|
+| `id` | int | Primary key |
+| `submissionid` | int | FK to `aiproofreader_submission` |
+| `graderid` | int | FK to `user` - the grading teacher |
+| `q1overallfeedback` | int(2) | 1-5: was the overall feedback useful |
+| `q2specificfeedback` | int(2) | 1-5: was the assignment-specific feedback useful |
+| `q3usedfeedback` | int(2) | 1-5: did the student use the feedback |
+| `q4feedbackfollowed` | int(2) | 1-5: was the feedback followed |
+| `q5aiscaffold` | int(2) | 1-5: did the AI help scaffold the student |
+| `q6aiaccuracy` | int(2) | 1-5: was the AI feedback accurate for this assignment |
+| `freetext` | text | Optional: concerns about the AI feedback |
+| `timecreated` | int | Unix timestamp |
 
 ### `aiproofreader_grade`
-| Field | Description |
-|---|---|
-| grade | Points awarded by the teacher |
-| graderid | Teacher user ID who graded the submission |
-| timemodified | Unix timestamp the grade was last saved (used for reimbursement counts) |
+One row per submission - the teacher's grade and comments. Unique on `submissionid`.
 
-## Copyright
-
-2026 Brian Pool. Licensed under the GNU GPL v3 or later.
+| Field | Type | Description |
+|---|---|---|
+| `id` | int | Primary key |
+| `submissionid` | int | FK to `aiproofreader_submission` |
+| `graderid` | int | FK to `user` - the grading teacher |
+| `grade` | int | Points awarded |
+| `instructorcomments` | text | Instructor comments |
+| `instructorcommentsformat` | int | Format of `instructorcomments` |
+| `timemodified` | int | Unix timestamp |

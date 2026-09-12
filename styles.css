@@ -1,166 +1,69 @@
-.aiproofreaderreport-filterbar {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-}
+/* This file is part of Moodle - http://moodle.org/
+ *
+ * Moodle is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
-.aiproofreaderreport-filterrow {
+/**
+ * Styles for mod_aiproofreader.
+ *
+ * @package    mod_aiproofreader
+ * @copyright  2026 Brian Pool
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+/* Spread the 1-5 (and category) survey radio button groups across the
+   available width instead of leaving them bunched up next to the label. */
+/* Widen the label column for the 1-5 scale survey questions (identified by
+   having a radio with value="1") and the category-preference question
+   (identified by its specific name, now that it uses the same inline
+   layout as the scale questions). */
+.path-mod-aiproofreader .fitem:has(input[type="radio"][name^="q"][value="1"]),
+.path-mod-aiproofreader .fitem:has(input[type="radio"][name="q4categoryhelped"]) {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 0.75rem;
+    align-items: flex-start;
 }
 
-.aiproofreaderreport-filteritem {
-    display: flex;
-    flex-direction: column;
-    min-width: 160px;
+.path-mod-aiproofreader .fitem:has(input[type="radio"][name^="q"][value="1"]) > *:first-child,
+.path-mod-aiproofreader .fitem:has(input[type="radio"][name="q4categoryhelped"]) > *:first-child {
+    flex: 0 0 45%;
+    max-width: 45%;
 }
 
-.aiproofreaderreport-filteritem label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-bottom: 0.15rem;
+.path-mod-aiproofreader .fitem:has(input[type="radio"][name^="q"][value="1"]) > *:last-child,
+.path-mod-aiproofreader .fitem:has(input[type="radio"][name="q4categoryhelped"]) > *:last-child {
+    flex: 1 1 auto;
+    max-width: 55%;
 }
 
-.aiproofreaderreport-filterhint {
-    font-size: 0.8rem;
-    color: #6c757d;
-    padding-top: 0.4rem;
+/* Category-question row stacking is now handled in JS (amd/src/feedback.js,
+   fixCategoryQuestionLayout) instead of CSS - repeated attempts at guessing
+   Moodle's internal wrapper class name for this were not reliable. */
+
+/* Moodle's automatic activity header re-displays the description above our
+   own collapsible one - hide that duplicate on our plugin's pages only. */
+.path-mod-aiproofreader .activity-header .activity-description {
+    display: none;
 }
 
-.aiproofreaderreport-filterbuttons {
-    flex-direction: row;
-    align-items: center;
-}
-
-.aiproofreaderreport-table {
-    width: 100%;
-}
-
-.aiproofreaderreport-table th {
-    position: sticky;
-    top: 0;
-    background: #fff;
-    z-index: 1;
-}
-
-/* Collapsible admin settings sections (settings.php). */
-.aiproofreaderreport-settingsgroup-wrap {
-    max-width: 900px;
-}
-
-.aiproofreaderreport-settingsgroup {
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    padding: 0.25rem 1rem 1rem 1rem;
-}
-
-.aiproofreaderreport-settingsgroup > summary {
+.aiproofreader-instructions summary,
+.aiproofreader-collapsible summary {
     cursor: pointer;
-    font-size: 1.1rem;
     font-weight: 600;
-    padding: 0.75rem 0;
+    padding: 0.25rem 0;
 }
 
-.aiproofreaderreport-settingsgroup-body {
+.aiproofreader-instructions-content,
+.aiproofreader-collapsible-content {
     padding-top: 0.5rem;
 }
 
-.aiproofreaderreport-settingsgroup-row {
-    padding: 0.5rem 0;
-    border-top: 1px solid #f1f1f1;
+.aiproofreader-collapsible {
+    margin-bottom: 0.75rem;
 }
 
-.aiproofreaderreport-settingsgroup-row label {
-    font-weight: 600;
-    display: block;
-    margin-bottom: 0.25rem;
-}
-
-.aiproofreaderreport-settingsgroup-row input[type="text"] {
-    max-width: 100%;
-    width: 100%;
-}
-
-.aiproofreaderreport-settingsgroup-desc {
-    font-size: 0.85rem;
-    color: #6c757d;
-    margin-top: 0.25rem;
-}
-
-.aiproofreaderreport-subheading {
-    margin-top: 1rem;
-    margin-bottom: 0.25rem;
-}
-
-/* Anonymized export field picker (tab_anonexport.php). */
-.aiproofreaderreport-exportfieldcolumns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-    margin: 1rem 0;
-}
-
-.aiproofreaderreport-exportfieldcolumn {
-    flex: 1 1 260px;
-    min-width: 220px;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 0.75rem 1rem;
-}
-
-.aiproofreaderreport-exportfieldcolumn h5 {
-    margin-top: 0;
-    border-bottom: 1px solid #f1f1f1;
-    padding-bottom: 0.4rem;
-}
-
-.aiproofreaderreport-exportfieldrow {
-    padding: 0.2rem 0;
-}
-
-.aiproofreaderreport-exportfieldrow label {
-    margin-left: 0.4rem;
-    font-weight: normal;
-}
-
-.aiproofreaderreport-exportfield-subgroupdivider {
-    margin: 0.75rem 0 0.5rem;
-    border: none;
-    border-top: 1px solid #f1f1f1;
-}
-
-.aiproofreaderreport-exportfieldcolumn h6 {
-    margin-top: 0;
-    margin-bottom: 0.3rem;
-    font-size: 0.9rem;
-    color: #555;
-}
-
-.aiproofreaderreport-exportfieldbuttons {
-    margin: 0.75rem 0;
-}
-
-.aiproofreaderreport-topbuttonrow {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
-    margin: 0.75rem 0;
-}
-
-.aiproofreaderreport-optoutform {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-}
-
-.aiproofreaderreport-optoutcount {
-    font-size: 0.85rem;
-    color: #6c757d;
+.aiproofreader-spinner {
+    margin-top: 0.5rem;
 }

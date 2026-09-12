@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for mod_aiproofreader.
+ * External services for mod_aiproofreader.
  *
  * @package    mod_aiproofreader
  * @copyright  2026 Brian Pool
@@ -24,8 +24,21 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'mod_aiproofreader';
-$plugin->version   = 2026091200;      // YYYYMMDDXX.
-$plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.5.2';
+$functions = [
+    'mod_aiproofreader_generate_feedback' => [
+        'classname'     => 'mod_aiproofreader\external\generate_feedback',
+        'methodname'    => 'execute',
+        'description'   => 'Generate AI feedback for a submitted draft',
+        'type'          => 'write',
+        'ajax'          => true,
+        'loginrequired' => true,
+    ],
+    'mod_aiproofreader_generate_comparison' => [
+        'classname'     => 'mod_aiproofreader\external\generate_comparison',
+        'methodname'    => 'execute',
+        'description'   => 'Generate the AI draft-vs-final comparison for grading',
+        'type'          => 'write',
+        'ajax'          => true,
+        'loginrequired' => true,
+    ],
+];
