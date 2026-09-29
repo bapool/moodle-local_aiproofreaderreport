@@ -48,4 +48,43 @@ if (empty($rows)) {
         $table->data[] = [$row->teachername, $row->gradedcount];
     }
     echo html_writer::table($table);
+
+    // Notify teachers of their own counts for the selected date range.
+    if (has_capability('local/aiproofreaderreport:notify', context_system::instance())) {
+        echo html_writer::tag('h3', get_string('notify_heading', 'local_aiproofreaderreport'));
+
+        if (!report_manager::has_valid_date_range($filters)) {
+            echo $OUTPUT->notification(get_string('notify_needrange', 'local_aiproofreaderreport'), 'warning');
+        } else {
+            echo html_writer::tag('p', get_string('notify_intro', 'local_aiproofreaderreport'));
+
+            echo html_writer::start_tag('form', [
+                'method' => 'get',
+                'action' => new moodle_url('/local/aiproofreaderreport/notify.php'),
+                'class' => 'aiproofreaderreport-notifyform',
+            ]);
+            foreach (report_manager::filters_to_params($filters) as $name => $value) {
+                echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => $name, 'value' => $value]);
+            }
+
+            echo html_writer::start_tag('div', ['class' => 'aiproofreaderreport-filterrow']);
+            echo html_writer::start_tag('div', ['class' => 'aiproofreaderreport-filteritem']);
+            echo html_writer::tag('label', get_string('notify_target', 'local_aiproofreaderreport'), ['for' => 'n_target']);
+            echo html_writer::empty_tag('input', [
+                'type' => 'number', 'name' => 'target', 'id' => 'n_target', 'min' => 0, 'step' => 1,
+                'class' => 'form-control',
+            ]);
+            echo html_writer::end_tag('div');
+
+            echo html_writer::start_tag('div', ['class' => 'aiproofreaderreport-filteritem aiproofreaderreport-filterbuttons']);
+            echo html_writer::empty_tag('input', [
+                'type' => 'submit', 'value' => get_string('notify_button', 'local_aiproofreaderreport'),
+                'class' => 'btn btn-primary',
+            ]);
+            echo html_writer::end_tag('div');
+            echo html_writer::end_tag('div');
+
+            echo html_writer::end_tag('form');
+        }
+    }
 }

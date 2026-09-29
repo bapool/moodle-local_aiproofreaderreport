@@ -25,6 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 use local_aiproofreaderreport\report_manager;
+use local_aiproofreaderreport\survey_charts;
 
 $summary = report_manager::get_student_survey_summary($filters);
 
@@ -50,6 +51,29 @@ if ($summary['total'] === 0) {
         $data = $summary['scores'][$field];
         $table->data[] = [$label, $data['average'] ?? '-', $data['count']];
     }
+
+    // Response rate against final submissions under the same filters.
+    $rate = (object) [
+        'total' => $summary['total'],
+        'eligible' => $summary['eligible'],
+        'percent' => $summary['eligible'] > 0 ? round($summary['total'] / $summary['eligible'] * 100) : 0,
+    ];
+    echo html_writer::tag('p', get_string('survey_responserate_student', 'local_aiproofreaderreport', $rate),
+        ['class' => 'aiproofreaderreport-responserate']);
+
+    // Small charts side by side above the tables.
+    $charts = array_filter([
+        survey_charts::score_distribution($questionlabels, $summary['scores']),
+        survey_charts::category_breakdown($summary['categorybreakdown']),
+    ]);
+    if (!empty($charts)) {
+        echo html_writer::start_tag('div', ['class' => 'aiproofreaderreport-charts']);
+        foreach ($charts as $chart) {
+            echo html_writer::div($OUTPUT->render($chart), 'aiproofreaderreport-chart');
+        }
+        echo html_writer::end_tag('div');
+    }
+
     echo html_writer::table($table);
 
     echo html_writer::tag('h4', get_string('studentsurvey_q4', 'local_aiproofreaderreport'));

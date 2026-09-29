@@ -25,6 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $string['aiproofreaderreport:export'] = 'Export anonymized AI Proofreader student data';
+$string['aiproofreaderreport:notify'] = 'Notify teachers of their AI Proofreader graded counts';
 $string['aiproofreaderreport:view'] = 'View the AI Proofreader analytics report';
 $string['anonexport_columnheading_pii'] = 'Personally identifying (off by default)';
 $string['anonexport_columnheading_structural'] = 'Submission & feedback data';
@@ -35,6 +36,9 @@ $string['anonexport_nocontacts'] = 'The district contacts table was not found on
 $string['anonexport_nofields'] = 'Choose at least one field to export.';
 $string['anonexport_privacybutton'] = 'Privacy defaults (deselect PII)';
 $string['anonexport_subgroupheading_assignmentspecifics'] = 'Assignment Submission Specifics';
+$string['chart_distribution'] = 'Score distribution (% of responses)';
+$string['chart_score_high'] = '5 (highest)';
+$string['chart_score_low'] = '1 (lowest)';
 $string['cleanupstaledata'] = 'Clean up stale AI Proofreader data';
 $string['collectgdrivetext'] = 'Retain Google Doc text';
 $string['collectgdrivetext_desc'] = 'Off by default. The text of a submitted Google Doc is always fetched briefly so the AI can generate feedback and comparison, but is cleared back out afterward (leaving only the link) unless this is turned on. Turn this on if you need the actual submitted text available for data export/research - a link alone is not usable research data.';
@@ -120,8 +124,26 @@ $string['filter_teacher'] = 'Teacher';
 $string['filters'] = 'Filters';
 $string['hscourseid'] = 'High School management course ID';
 $string['hscourseid_desc'] = 'The course ID used as the High School management/building course, used to determine which students fall in scope for this report.';
+$string['messageprovider:reimbursementcount'] = 'AI Proofreader graded activity count';
 $string['mscourseid'] = 'Middle School management course ID';
 $string['mscourseid_desc'] = 'The course ID used as the Middle School management/building course, used to determine which students fall in scope for this report.';
+$string['notify_body'] = 'Hello {$a->firstname},
+
+Between {$a->from} and {$a->to}, you completed {$a->count} graded AI Proofreader activities.';
+$string['notify_body_footer'] = 'These counts are used to track progress toward AI Proofreader grant funding. Thank you for your work!';
+$string['notify_body_target'] = 'The goal for this period is {$a->target}, so you have {$a->remaining} to go.';
+$string['notify_body_targetmet'] = 'The goal for this period is {$a->target}, and you have met it.';
+$string['notify_button'] = 'Notify teachers';
+$string['notify_confirm'] = 'Send each of these {$a->count} teacher(s) a notification with their own graded count for {$a->from} to {$a->to}?';
+$string['notify_confirm_target'] = 'The message will include a goal of {$a}.';
+$string['notify_heading'] = 'Notify teachers';
+$string['notify_intro'] = 'Send each teacher listed above a notification with their own graded count for the selected date range. Optionally enter a goal so the message tells them how many more they need.';
+$string['notify_needrange'] = 'Choose both a "Date from" and a "Date to" (in order) and apply filters to notify teachers.';
+$string['notify_send'] = 'Send notifications';
+$string['notify_sent'] = 'Notifications sent: {$a->sent}. Not sent: {$a->failed}.';
+$string['notify_small'] = '{$a->count} graded AI Proofreader activities ({$a->from} to {$a->to})';
+$string['notify_subject'] = 'Your AI Proofreader graded activities: {$a->from} to {$a->to}';
+$string['notify_target'] = 'Goal for this period (optional)';
 $string['optout_importbutton'] = 'Import opt-out roster';
 $string['optout_importsuccess'] = 'Opt-out roster updated: {$a} student(s) will now be excluded from the export.';
 $string['optout_rostercount'] = '{$a} student(s) currently opted out';
@@ -162,6 +184,8 @@ $string['studentsurveyheading'] = 'Student survey questions';
 $string['survey_average'] = 'Average score';
 $string['survey_nodata'] = 'No survey responses match the current filters.';
 $string['survey_question'] = 'Question';
+$string['survey_responserate_student'] = '{$a->total} student survey responses from {$a->eligible} final submissions ({$a->percent}%).';
+$string['survey_responserate_teacher'] = '{$a->total} teacher survey responses from {$a->eligible} graded submissions ({$a->percent}%).';
 $string['survey_responses'] = 'Responses';
 $string['surveyenabled'] = 'Turn on student and teacher surveys';
 $string['surveyenabled_desc'] = 'Off by default. While off, no survey questions are shown to students or teachers at all, and AI Proofreader runs in feedback-only mode - there is no way to see survey data without this plugin, so nothing is collected until this is turned on.';

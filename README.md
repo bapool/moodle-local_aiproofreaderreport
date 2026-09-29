@@ -37,7 +37,7 @@ Accessible under **Site administration → Reports → AI Proofreader Report**.
 - **Overview** — which teachers are using AI Proofreader, in which courses, how many students are enrolled/submitted/finished/graded per activity.
 - **Student Survey** — average score and response count per student survey question, plus a breakdown of which feedback category students found more helpful.
 - **Teacher Survey** — average score and response count per teacher survey question.
-- **Reimbursement** — count of graded AI Proofreader activities per teacher within a chosen date range, for stipend/reimbursement purposes.
+- **Reimbursement** — count of graded AI Proofreader activities per teacher within a chosen date range, for stipend/reimbursement purposes. Users with `local/aiproofreaderreport:notify` can send each teacher a notification with their own count for the chosen range, with an optional goal.
 - **Data Dictionary** — downloadable CSV reference of every field this report reads.
 - **Anonymized Export** — placeholder for a future de-identified student data export (see "Planned: anonymized export" below).
 

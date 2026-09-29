@@ -2,6 +2,24 @@
 
 All notable changes to `local_aiproofreaderreport` are documented here.
 
+## v0.7.0 - 2026-09-28
+
+### Added
+- Reimbursement tab: new "Notify teachers" section. After applying a complete date range, click "Notify teachers" to see a confirmation page listing each teacher and their graded count, then "Send notifications" to send each teacher a Moodle notification (popup and email by default) with their own graded count for that period. An optional "Goal for this period" adds a line telling each teacher how many more they need, or that they have met it.
+- New message provider `reimbursementcount` (`db/messages.php`).
+- New capability `local/aiproofreaderreport:notify` (manager archetype), required to send the notifications.
+- Student Survey and Teacher Survey tabs now show small charts (Moodle core chart API): a stacked bar per question showing the percentage of responses at each score from 1 to 5, and on the Student Survey tab, a bar chart of which feedback category helped more. Each chart has Moodle's built-in "Show chart data" table.
+- Both survey tabs now show a response-rate line: survey responses compared with final submissions (students) or graded submissions (teachers) under the same filters.
+
+### Fixed
+- Student and teacher survey totals capped at 5 responses. Both summary queries used a 1-5 score as the first selected column, and `get_records_sql()` keys results by the first column, so all responses with the same Q1 score collapsed into one row. The queries now select the survey row `id` first.
+
+### Changed
+- Overview tab now sorts by teacher last name, first name, then course name, then activity name (was course name, then activity name). Where a course has more than one editing teacher, the names in the cell are also listed in last-name order and the row sorts by the first one. Rows with no editing teacher sort last.
+- Reimbursement tab now sorts by teacher last name, first name (was highest graded count first).
+- Grade level filter dropdown now lists highest grade first, sorted numerically (so 12, 11, 10 come before 9), and no longer lists a blank grade level.
+- Teacher names on the Reimbursement tab are now loaded in one query with all name fields, so `fullname()` has everything it needs.
+
 ## v0.6.1 - 2026-09-14
 
 ### Fixed

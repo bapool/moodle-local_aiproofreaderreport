@@ -121,19 +121,24 @@ class report_manager {
     }
 
     /**
-     * Distinct grade levels currently set on any aiproofreader instance.
+     * Distinct grade levels currently set on any aiproofreader instance,
+     * highest grade first.
      *
      * @return string[]
      */
     public static function get_gradelevel_options(): array {
         global $DB;
 
-        $records = $DB->get_records_sql(
-            "SELECT DISTINCT gradelevel FROM {aiproofreader} ORDER BY gradelevel ASC"
+        $records = $DB->get_fieldset_sql(
+            "SELECT DISTINCT gradelevel FROM {aiproofreader} WHERE gradelevel IS NOT NULL"
         );
-        return array_map(static function ($record) {
-            return $record->gradelevel;
-        }, $records);
+        $levels = array_values(array_filter(array_map('strval', $records), static function ($level) {
+            return $level !== '';
+        }));
+        // Highest grade first. Sorted numerically in PHP because the column
+        // is text on some installs, where SQL would order 9 above 12.
+        rsort($levels, SORT_NUMERIC);
+        return $levels;
     }
 
     /**
@@ -223,7 +228,8 @@ class report_manager {
 
     /**
      * Overview tab: one row per aiproofreader instance, with enrolled,
-     * submitted, final-submitted, and graded counts (all scoped).
+     * submitted, final-submitted, and graded counts (all scoped). Sorted by
+     * teacher last name, first name, then course name, then activity name.
      *
      * @param array $filters
      * @return array
@@ -247,8 +253,7 @@ class report_manager {
                         JOIN {role_assignments} ra ON ra.contextid = ctx.id
                         WHERE ctx.contextlevel = :contextcourse AND ra.userid = :fteacherid
                     )" : '') . "
-              GROUP BY ap.id, ap.name, ap.course, ap.gradelevel, c.fullname
-              ORDER BY c.fullname ASC, ap.name ASC";
+              GROUP BY ap.id, ap.name, ap.course, ap.gradelevel, c.fullname";
 
         if (!empty($filters['teacherid'])) {
             $params['contextcourse'] = CONTEXT_COURSE;
@@ -259,19 +264,25 @@ class report_manager {
 
         // Attach enrolled-student counts and teacher names (not part of the
         // aggregate query above since enrolment isn't submission-driven).
+        $scopeids = self::get_scope_userids();
+        $teacherroleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
         foreach ($rows as $row) {
             $enrolled = get_enrolled_users(
                 \context_course::instance($row->courseid),
                 'mod/aiproofreader:submit'
             );
-            $scopeids = self::get_scope_userids();
             $row->enrolledcount = count(array_intersect(array_keys($enrolled), $scopeids));
 
-            $teachers = get_role_users(
-                $DB->get_field('role', 'id', ['shortname' => 'editingteacher']),
-                \context_course::instance($row->courseid)
-            );
+            $teachers = array_values(get_role_users(
+                $teacherroleid,
+                \context_course::instance($row->courseid),
+                false,
+                '',
+                'u.lastname ASC, u.firstname ASC'
+            ));
             $row->teachername = implode(', ', array_map('fullname', $teachers));
+            $row->teacherlastname = $teachers ? $teachers[0]->lastname : '';
+            $row->teacherfirstname = $teachers ? $teachers[0]->firstname : '';
 
             $models = $DB->get_fieldset_select(
                 'aiproofreader_submission',
@@ -282,7 +293,20 @@ class report_manager {
             $row->aimodels = implode(', ', $models);
         }
 
-        return array_values($rows);
+        // Teacher last name, first name, then course, then activity. Rows
+        // with no editing teacher sort to the bottom.
+        $rows = array_values($rows);
+        usort($rows, static function ($a, $b) {
+            if (($a->teacherlastname === '') !== ($b->teacherlastname === '')) {
+                return $a->teacherlastname === '' ? 1 : -1;
+            }
+            return strnatcasecmp($a->teacherlastname, $b->teacherlastname)
+                ?: strnatcasecmp($a->teacherfirstname, $b->teacherfirstname)
+                ?: strnatcasecmp($a->coursename, $b->coursename)
+                ?: strnatcasecmp($a->activityname, $b->activityname);
+        });
+
+        return $rows;
     }
 
     /**
@@ -297,7 +321,10 @@ class report_manager {
 
         [$where, $params] = self::build_filter_sql($filters, 'ss.timecreated');
 
-        $sql = "SELECT ss.q1overallfeedback, ss.q2specificfeedback, ss.q3usedfeedback,
+        // The unique ss.id must come first: get_records_sql() keys results by
+        // the first column, so leading with a 1-5 score collapsed every
+        // response down to at most five rows.
+        $sql = "SELECT ss.id, ss.q1overallfeedback, ss.q2specificfeedback, ss.q3usedfeedback,
                        ss.q5confidence, ss.q4categoryhelped
                   FROM {aiproofreader_studentsurvey} ss
                   JOIN {aiproofreader_submission} s ON s.id = ss.submissionid
@@ -305,31 +332,65 @@ class report_manager {
                  WHERE $where";
         $records = $DB->get_records_sql($sql, $params);
 
-        $scores = [
-            'q1overallfeedback'  => ['sum' => 0, 'count' => 0],
-            'q2specificfeedback' => ['sum' => 0, 'count' => 0],
-            'q3usedfeedback'     => ['sum' => 0, 'count' => 0],
-            'q5confidence'       => ['sum' => 0, 'count' => 0],
-        ];
-        $categorybreakdown = ['grammar' => 0, 'assignment' => 0, 'both' => 0];
+        $fields = ['q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback', 'q5confidence'];
+        $scores = self::summarise_scores($records, $fields);
 
+        $categorybreakdown = ['grammar' => 0, 'assignment' => 0, 'both' => 0];
         foreach ($records as $record) {
-            foreach (['q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback', 'q5confidence'] as $field) {
-                if ($record->$field !== null) {
-                    $scores[$field]['sum'] += (int) $record->$field;
-                    $scores[$field]['count']++;
-                }
-            }
             if (isset($categorybreakdown[$record->q4categoryhelped])) {
                 $categorybreakdown[$record->q4categoryhelped]++;
+            }
+        }
+
+        // Response rate: final submissions in scope under the same filters.
+        [$fwhere, $fparams] = self::build_filter_sql($filters, 's.finaltimesubmitted');
+        $eligible = (int) $DB->count_records_sql(
+            "SELECT COUNT(s.id)
+               FROM {aiproofreader_submission} s
+               JOIN {aiproofreader} ap ON ap.id = s.aiproofreaderid
+              WHERE $fwhere AND s.finaltimesubmitted > 0",
+            $fparams
+        );
+
+        return [
+            'scores' => $scores,
+            'categorybreakdown' => $categorybreakdown,
+            'total' => count($records),
+            'eligible' => $eligible,
+        ];
+    }
+
+    /**
+     * Average, response count, and 1-5 distribution for each survey question.
+     *
+     * @param array $records survey rows
+     * @param string[] $fields question columns to summarise
+     * @return array field => ['sum', 'count', 'average', 'distribution' => [1 => n, ..., 5 => n]]
+     */
+    private static function summarise_scores(array $records, array $fields): array {
+        $scores = [];
+        foreach ($fields as $field) {
+            $scores[$field] = ['sum' => 0, 'count' => 0, 'distribution' => array_fill(1, 5, 0)];
+        }
+
+        foreach ($records as $record) {
+            foreach ($fields as $field) {
+                if ($record->$field === null) {
+                    continue;
+                }
+                $value = (int) $record->$field;
+                $scores[$field]['sum'] += $value;
+                $scores[$field]['count']++;
+                if ($value >= 1 && $value <= 5) {
+                    $scores[$field]['distribution'][$value]++;
+                }
             }
         }
 
         foreach ($scores as $field => $data) {
             $scores[$field]['average'] = $data['count'] > 0 ? round($data['sum'] / $data['count'], 2) : null;
         }
-
-        return ['scores' => $scores, 'categorybreakdown' => $categorybreakdown, 'total' => count($records)];
+        return $scores;
     }
 
     /**
@@ -349,7 +410,8 @@ class report_manager {
             $params['fteacherid'] = $filters['teacherid'];
         }
 
-        $sql = "SELECT ts.q1overallfeedback, ts.q2specificfeedback, ts.q3usedfeedback,
+        // The unique ts.id must come first - see get_student_survey_summary().
+        $sql = "SELECT ts.id, ts.q1overallfeedback, ts.q2specificfeedback, ts.q3usedfeedback,
                        ts.q4feedbackfollowed, ts.q5aiscaffold, ts.q6aiaccuracy
                   FROM {aiproofreader_teachersurvey} ts
                   JOIN {aiproofreader_submission} s ON s.id = ts.submissionid
@@ -361,33 +423,34 @@ class report_manager {
             'q1overallfeedback', 'q2specificfeedback', 'q3usedfeedback',
             'q4feedbackfollowed', 'q5aiscaffold', 'q6aiaccuracy',
         ];
-        $scores = [];
-        foreach ($fields as $field) {
-            $scores[$field] = ['sum' => 0, 'count' => 0];
-        }
+        $scores = self::summarise_scores($records, $fields);
 
-        foreach ($records as $record) {
-            foreach ($fields as $field) {
-                if ($record->$field !== null) {
-                    $scores[$field]['sum'] += (int) $record->$field;
-                    $scores[$field]['count']++;
-                }
-            }
+        // Response rate: graded submissions in scope under the same filters.
+        [$gwhere, $gparams] = self::build_filter_sql($filters, 'g.timemodified');
+        $gradedclause = '';
+        if (!empty($filters['teacherid'])) {
+            $gradedclause = 'AND g.graderid = :fteacherid';
+            $gparams['fteacherid'] = $filters['teacherid'];
         }
+        $eligible = (int) $DB->count_records_sql(
+            "SELECT COUNT(g.id)
+               FROM {aiproofreader_grade} g
+               JOIN {aiproofreader_submission} s ON s.id = g.submissionid
+               JOIN {aiproofreader} ap ON ap.id = s.aiproofreaderid
+              WHERE $gwhere $gradedclause",
+            $gparams
+        );
 
-        foreach ($scores as $field => $data) {
-            $scores[$field]['average'] = $data['count'] > 0 ? round($data['sum'] / $data['count'], 2) : null;
-        }
-
-        return ['scores' => $scores, 'total' => count($records)];
+        return ['scores' => $scores, 'total' => count($records), 'eligible' => $eligible];
     }
 
     /**
      * Reimbursement tab: count of graded submissions per teacher within
-     * the selected date range (defaults to no bound if not provided).
+     * the selected date range (defaults to no bound if not provided),
+     * sorted by teacher last name, first name.
      *
      * @param array $filters
-     * @return array indexed rows: teachername, gradedcount
+     * @return array indexed rows: teacherid, teachername, lastname, firstname, gradedcount
      */
     public static function get_reimbursement_rows(array $filters): array {
         global $DB;
@@ -405,20 +468,149 @@ class report_manager {
                   JOIN {aiproofreader_submission} s ON s.id = g.submissionid
                   JOIN {aiproofreader} ap ON ap.id = s.aiproofreaderid
                  WHERE $where $teacherclause
-              GROUP BY g.graderid
-              ORDER BY gradedcount DESC";
+              GROUP BY g.graderid";
         $records = $DB->get_records_sql($sql, $params);
+        if (empty($records)) {
+            return [];
+        }
+
+        // Load every grader's name fields in one query.
+        [$uinsql, $uinparams] = $DB->get_in_or_equal(array_keys($records), SQL_PARAMS_NAMED, 'grader');
+        $namefields = \core_user\fields::for_name()->get_sql('u')->selects;
+        $users = $DB->get_records_sql("SELECT u.id $namefields FROM {user} u WHERE u.id $uinsql", $uinparams);
 
         $rows = [];
         foreach ($records as $record) {
-            $user = $DB->get_record('user', ['id' => $record->graderid], 'id, firstname, lastname');
+            $user = $users[$record->graderid] ?? null;
             $rows[] = (object) [
-                'teacherid'   => $record->graderid,
+                'teacherid'   => (int) $record->graderid,
                 'teachername' => $user ? fullname($user) : get_string('unknownuser', 'moodle'),
-                'gradedcount' => $record->gradedcount,
+                'lastname'    => $user ? $user->lastname : '',
+                'firstname'   => $user ? $user->firstname : '',
+                'gradedcount' => (int) $record->gradedcount,
             ];
         }
+
+        // Last name, first name. Unknown users sort to the bottom.
+        usort($rows, static function ($a, $b) {
+            if (($a->lastname === '') !== ($b->lastname === '')) {
+                return $a->lastname === '' ? 1 : -1;
+            }
+            return strnatcasecmp($a->lastname, $b->lastname)
+                ?: strnatcasecmp($a->firstname, $b->firstname);
+        });
+
         return $rows;
+    }
+
+    /**
+     * Turn a filter array back into the f_* URL parameters the filter bar
+     * uses, leaving out empty values.
+     *
+     * @param array $filters
+     * @return array
+     */
+    public static function filters_to_params(array $filters): array {
+        $map = [
+            'courseid'   => 'f_course',
+            'teacherid'  => 'f_teacher',
+            'gradelevel' => 'f_gradelevel',
+            'groupid'    => 'f_group',
+            'datefrom'   => 'f_datefrom',
+            'dateto'     => 'f_dateto',
+        ];
+        $params = [];
+        foreach ($map as $key => $param) {
+            if (!empty($filters[$key])) {
+                $params[$param] = $filters[$key];
+            }
+        }
+        return $params;
+    }
+
+    /**
+     * Whether the filters hold a complete, valid date range (both ends set,
+     * in YYYY-MM-DD form, start on or before end). Teacher notifications
+     * need one so the message can state the period being counted.
+     *
+     * @param array $filters
+     * @return bool
+     */
+    public static function has_valid_date_range(array $filters): bool {
+        foreach (['datefrom', 'dateto'] as $key) {
+            if (empty($filters[$key]) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters[$key])) {
+                return false;
+            }
+        }
+        $from = strtotime($filters['datefrom'] . ' 00:00:00');
+        $to = strtotime($filters['dateto'] . ' 23:59:59');
+        return $from !== false && $to !== false && $from <= $to;
+    }
+
+    /**
+     * Send each teacher on the reimbursement list a notification with their
+     * own graded count for the selected date range.
+     *
+     * @param array $filters Must hold a valid date range (see has_valid_date_range()).
+     * @param int $target Optional grant target for the period; 0 leaves it out of the message.
+     * @return \stdClass counts: sent, failed
+     */
+    public static function send_reimbursement_notifications(array $filters, int $target = 0): \stdClass {
+        global $USER;
+
+        $result = (object) ['sent' => 0, 'failed' => 0];
+        if (!self::has_valid_date_range($filters)) {
+            return $result;
+        }
+
+        $dateformat = get_string('strftimedate', 'langconfig');
+        $from = userdate(strtotime($filters['datefrom'] . ' 00:00:00'), $dateformat);
+        $to = userdate(strtotime($filters['dateto'] . ' 23:59:59'), $dateformat);
+
+        foreach (self::get_reimbursement_rows($filters) as $row) {
+            $recipient = \core_user::get_user($row->teacherid);
+            if (!$recipient || $recipient->deleted || $recipient->suspended) {
+                $result->failed++;
+                continue;
+            }
+
+            $a = (object) [
+                'firstname' => $recipient->firstname,
+                'count'     => $row->gradedcount,
+                'from'      => $from,
+                'to'        => $to,
+                'target'    => $target,
+                'remaining' => max(0, $target - $row->gradedcount),
+            ];
+
+            $body = get_string('notify_body', 'local_aiproofreaderreport', $a);
+            if ($target > 0) {
+                $targetkey = $row->gradedcount >= $target ? 'notify_body_targetmet' : 'notify_body_target';
+                $body .= "\n\n" . get_string($targetkey, 'local_aiproofreaderreport', $a);
+            }
+            $body .= "\n\n" . get_string('notify_body_footer', 'local_aiproofreaderreport');
+
+            $message = new \core\message\message();
+            $message->component = 'local_aiproofreaderreport';
+            $message->name = 'reimbursementcount';
+            $message->userfrom = $USER;
+            $message->userto = $recipient;
+            $message->subject = get_string('notify_subject', 'local_aiproofreaderreport', $a);
+            $message->fullmessage = $body;
+            $message->fullmessageformat = FORMAT_PLAIN;
+            $message->fullmessagehtml = text_to_html(s($body), false, false, true);
+            $message->smallmessage = get_string('notify_small', 'local_aiproofreaderreport', $a);
+            $message->notification = 1;
+            $message->courseid = SITEID;
+
+            if (message_send($message)) {
+                $result->sent++;
+            } else {
+                $result->failed++;
+            }
+        }
+
+        return $result;
     }
 
     /**

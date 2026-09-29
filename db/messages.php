@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for local_aiproofreaderreport.
+ * Message providers for local_aiproofreaderreport.
  *
  * @package    local_aiproofreaderreport
  * @copyright  2026 Brian Pool
@@ -24,19 +24,12 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_aiproofreaderreport';
-$plugin->version   = 2026092801;      // YYYYMMDDXX.
-$plugin->requires  = 2024042200;      // Moodle 4.5.
-$plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.7.0';
-
-// This plugin is the admin control surface for mod_aiproofreader (survey
-// on/off, question wording, data collection settings) and reports on its
-// data - it has nothing to do without it, so refuse to install/upgrade
-// unless mod_aiproofreader is already present at a compatible version.
-// Bumped to 2026091001 since the anonymized export's draft/final submission
-// text columns now source from initialtextredacted/finaltextredacted,
-// introduced in that mod version.
-$plugin->dependencies = [
-    'mod_aiproofreader' => 2026091001,
+$messageproviders = [
+    // Sent to each teacher from the Reimbursement tab with their graded count for a date range.
+    'reimbursementcount' => [
+        'defaults' => [
+            'popup' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+            'email' => MESSAGE_PERMITTED + MESSAGE_DEFAULT_ENABLED,
+        ],
+    ],
 ];
