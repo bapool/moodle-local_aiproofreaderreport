@@ -58,8 +58,11 @@ if ($summary['total'] === 0) {
         'eligible' => $summary['eligible'],
         'percent' => $summary['eligible'] > 0 ? round($summary['total'] / $summary['eligible'] * 100) : 0,
     ];
-    echo html_writer::tag('p', get_string('survey_responserate_student', 'local_aiproofreaderreport', $rate),
-        ['class' => 'aiproofreaderreport-responserate']);
+    echo html_writer::tag(
+        'p',
+        get_string('survey_responserate_student', 'local_aiproofreaderreport', $rate),
+        ['class' => 'aiproofreaderreport-responserate']
+    );
 
     // Small charts side by side above the tables.
     $charts = array_filter([

@@ -48,14 +48,22 @@ $PAGE->set_title(get_string('pagetitle', 'local_aiproofreaderreport'));
 $PAGE->set_heading(get_string('pageheading', 'local_aiproofreaderreport'));
 
 if (!report_manager::has_valid_date_range($filters)) {
-    redirect($returnurl, get_string('notify_needrange', 'local_aiproofreaderreport'), null,
-        \core\output\notification::NOTIFY_ERROR);
+    redirect(
+        $returnurl,
+        get_string('notify_needrange', 'local_aiproofreaderreport'),
+        null,
+        \core\output\notification::NOTIFY_ERROR
+    );
 }
 
 $rows = report_manager::get_reimbursement_rows($filters);
 if (empty($rows)) {
-    redirect($returnurl, get_string('reimbursement_nodata', 'local_aiproofreaderreport'), null,
-        \core\output\notification::NOTIFY_WARNING);
+    redirect(
+        $returnurl,
+        get_string('reimbursement_nodata', 'local_aiproofreaderreport'),
+        null,
+        \core\output\notification::NOTIFY_WARNING
+    );
 }
 
 if ($confirm && confirm_sesskey()) {
@@ -90,8 +98,12 @@ if ($target > 0) {
     $message .= ' ' . get_string('notify_confirm_target', 'local_aiproofreaderreport', $target);
 }
 $confirmurl = new moodle_url('/local/aiproofreaderreport/notify.php', $filterparams + ['target' => $target, 'confirm' => 1]);
-$confirmbutton = new single_button($confirmurl, get_string('notify_send', 'local_aiproofreaderreport'), 'post',
-    single_button::BUTTON_PRIMARY);
+$confirmbutton = new single_button(
+    $confirmurl,
+    get_string('notify_send', 'local_aiproofreaderreport'),
+    'post',
+    single_button::BUTTON_PRIMARY
+);
 echo $OUTPUT->confirm($message, $confirmbutton, $returnurl);
 
 echo $OUTPUT->footer();
