@@ -11,6 +11,9 @@ All notable changes to `local_aiproofreaderreport` are documented here.
 ### Changed
 - The Reimbursement table now lists every grant roster teacher (with 0s if they have nothing yet) as well as everyone who graded in the range. Notifications are unchanged.
 
+### Fixed
+- Moodle code checker (phpcs) errors carried over from v0.7.1: multi-line function declaration of `report_manager::build_notification_message()`, and in `classes/privacy/provider.php` the blank line after the class opening brace and the multi-line `record_exists_select()` call inside an `if`.
+
 ## v0.7.1 - 2026-10-04
 
 ### Added

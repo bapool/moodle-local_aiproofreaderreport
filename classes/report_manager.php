@@ -771,8 +771,14 @@ class report_manager {
      * @param string $firstname Recipient's first name.
      * @return \stdClass subject, body, small
      */
-    public static function build_notification_message(\stdClass $row, \stdClass $totals, int $target,
-            string $from, string $to, string $firstname): \stdClass {
+    public static function build_notification_message(
+        \stdClass $row,
+        \stdClass $totals,
+        int $target,
+        string $from,
+        string $to,
+        string $firstname
+    ): \stdClass {
         $outlook = self::get_goal_outlook($row->gradedcount, $totals, $target);
         $a = (object) [
             'firstname'     => $firstname,

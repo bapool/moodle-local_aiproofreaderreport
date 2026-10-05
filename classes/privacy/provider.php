@@ -40,7 +40,6 @@ class provider implements
     \core_privacy\local\metadata\provider,
     \core_privacy\local\request\core_userlist_provider,
     \core_privacy\local\request\plugin\provider {
-
     /** @var string Grant roster table. */
     private const TABLE = 'local_aiproofreaderreport_grantteacher';
 
@@ -73,8 +72,12 @@ class provider implements
         global $DB;
 
         $contextlist = new contextlist();
-        if ($DB->record_exists_select(self::TABLE, 'userid = :userid OR importedby = :importedby',
-                ['userid' => $userid, 'importedby' => $userid])) {
+        $exists = $DB->record_exists_select(
+            self::TABLE,
+            'userid = :userid OR importedby = :importedby',
+            ['userid' => $userid, 'importedby' => $userid]
+        );
+        if ($exists) {
             $contextlist->add_system_context();
         }
         return $contextlist;
