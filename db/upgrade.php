@@ -51,5 +51,25 @@ function xmldb_local_aiproofreaderreport_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026090102, 'local', 'aiproofreaderreport');
     }
 
+    if ($oldversion < 2026100400) {
+        // Grant teacher roster: who gets reimbursement notifications.
+        $table = new xmldb_table('local_aiproofreaderreport_grantteacher');
+
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+        $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+        $table->add_field('importedby', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('userid', XMLDB_KEY_FOREIGN_UNIQUE, ['userid'], 'user', ['id']);
+        $table->add_key('importedby', XMLDB_KEY_FOREIGN, ['importedby'], 'user', ['id']);
+
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        upgrade_plugin_savepoint(true, 2026100400, 'local', 'aiproofreaderreport');
+    }
+
     return true;
 }

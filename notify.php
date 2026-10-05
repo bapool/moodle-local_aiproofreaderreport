@@ -18,7 +18,8 @@
  * Confirm and send reimbursement-count notifications to teachers.
  *
  * First visit (from the Reimbursement tab) shows who will be notified and
- * with what count; the confirm button POSTs back here with a sesskey to send.
+ * with what count - the grant roster when one has been uploaded, otherwise
+ * every teacher with graded submissions; the confirm button POSTs back here with a sesskey to send.
  *
  * @package    local_aiproofreaderreport
  * @copyright  2026 Brian Pool
@@ -56,11 +57,13 @@ if (!report_manager::has_valid_date_range($filters)) {
     );
 }
 
-$rows = report_manager::get_reimbursement_rows($filters);
+// The grant roster (if one has been uploaded) decides who is notified,
+// including roster teachers with 0 graded.
+$rows = report_manager::get_notification_rows($filters);
 if (empty($rows)) {
     redirect(
         $returnurl,
-        get_string('reimbursement_nodata', 'local_aiproofreaderreport'),
+        get_string('notify_norecipients', 'local_aiproofreaderreport'),
         null,
         \core\output\notification::NOTIFY_WARNING
     );
@@ -82,16 +85,50 @@ $a = (object) [
 echo $OUTPUT->header();
 echo html_writer::tag('h2', get_string('notify_heading', 'local_aiproofreaderreport'));
 
+$rosterkey = empty(report_manager::get_grantteacher_roster()) ? 'grantroster_none' : 'grantroster_inuse';
+echo $OUTPUT->notification(get_string($rosterkey, 'local_aiproofreaderreport'), 'info');
+
+$totals = report_manager::get_teacher_activity_totals($filters, array_column($rows, 'teacherid'));
+
 $table = new html_table();
 $table->head = [
     get_string('reimbursement_teacher', 'local_aiproofreaderreport'),
+    get_string('overview_submitted', 'local_aiproofreaderreport'),
+    get_string('overview_finalsubmitted', 'local_aiproofreaderreport'),
     get_string('reimbursement_gradedcount', 'local_aiproofreaderreport'),
 ];
+if ($target > 0) {
+    $table->head[] = get_string('notify_outlook', 'local_aiproofreaderreport');
+}
 $table->attributes['class'] = 'generaltable aiproofreaderreport-table';
 foreach ($rows as $row) {
-    $table->data[] = [$row->teachername, $row->gradedcount];
+    $t = $totals[$row->teacherid];
+    $cells = [$row->teachername, $t->submitted, $t->final, $row->gradedcount];
+    if ($target > 0) {
+        $outlook = report_manager::get_goal_outlook($row->gradedcount, $t, $target);
+        $cells[] = get_string('notify_outlook_' . $outlook->status, 'local_aiproofreaderreport', $outlook->short);
+    }
+    $table->data[] = $cells;
 }
 echo html_writer::table($table);
+
+// Preview the exact message the first teacher on the list will get.
+$first = reset($rows);
+$preview = report_manager::build_notification_message(
+    $first,
+    $totals[$first->teacherid],
+    $target,
+    $a->from,
+    $a->to,
+    $first->firstname
+);
+echo html_writer::tag(
+    'details',
+    html_writer::tag('summary', get_string('notify_preview', 'local_aiproofreaderreport', $first->teachername)) .
+        html_writer::tag('p', html_writer::tag('strong', s($preview->subject))) .
+        html_writer::tag('pre', s($preview->body), ['class' => 'aiproofreaderreport-preview']),
+    ['class' => 'aiproofreaderreport-grantroster']
+);
 
 $message = get_string('notify_confirm', 'local_aiproofreaderreport', $a);
 if ($target > 0) {

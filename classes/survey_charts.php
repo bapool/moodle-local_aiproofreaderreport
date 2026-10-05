@@ -37,9 +37,6 @@ class survey_charts {
         5 => '#1d4f91',
     ];
 
-    /** Single colour for one-series charts. */
-    private const SINGLE_COLOUR = '#1d4f91';
-
     /**
      * One horizontal stacked bar per question showing the percentage of
      * responses at each score from 1 to 5.
@@ -79,35 +76,6 @@ class survey_charts {
             $series->set_color($colour);
             $chart->add_series($series);
         }
-        return $chart;
-    }
-
-    /**
-     * Horizontal bar of how many students picked each "which feedback
-     * category helped more" answer.
-     *
-     * @param array $breakdown ['grammar' => n, 'assignment' => n, 'both' => n]
-     * @return \core\chart_bar|null null when there are no answers
-     */
-    public static function category_breakdown(array $breakdown): ?\core\chart_bar {
-        if (array_sum($breakdown) === 0) {
-            return null;
-        }
-
-        $chart = new \core\chart_bar();
-        $chart->set_horizontal(true);
-        $chart->set_title(get_string('studentsurvey_q4', 'local_aiproofreaderreport'));
-        $chart->set_labels([
-            get_string('studentsurvey_q4_grammar', 'local_aiproofreaderreport'),
-            get_string('studentsurvey_q4_assignment', 'local_aiproofreaderreport'),
-            get_string('studentsurvey_q4_both', 'local_aiproofreaderreport'),
-        ]);
-        $series = new \core\chart_series(
-            get_string('survey_responses', 'local_aiproofreaderreport'),
-            [$breakdown['grammar'], $breakdown['assignment'], $breakdown['both']]
-        );
-        $series->set_color(self::SINGLE_COLOUR);
-        $chart->add_series($series);
         return $chart;
     }
 

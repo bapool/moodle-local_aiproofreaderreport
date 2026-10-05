@@ -24,7 +24,7 @@ An admin/manager-facing analytics report for **mod_aiproofreader** (AI Proofread
 >
 > All report data is scoped to Middle School and High School students only, via two admin-configurable management course IDs. The plugin also provides a single settings page for controlling mod_aiproofreader's survey system site-wide — turning surveys on/off, showing or hiding individual questions, editing their wording, and tracking which AI model/provider generated each piece of feedback.
 
-This plugin does **not** store any data of its own — it reads directly from the existing `mod_aiproofreader` tables and reports on usage across every course, scoped to Middle School and High School students only.
+This plugin stores no report data of its own (only two small admin rosters - see the database dictionary below) — it reads directly from the existing `mod_aiproofreader` tables and reports on usage across every course, scoped to Middle School and High School students only.
 
 ## Requirements
 
@@ -37,7 +37,9 @@ Accessible under **Site administration → Reports → AI Proofreader Report**.
 - **Overview** — which teachers are using AI Proofreader, in which courses, how many students are enrolled/submitted/finished/graded per activity.
 - **Student Survey** — average score and response count per student survey question, plus a breakdown of which feedback category students found more helpful.
 - **Teacher Survey** — average score and response count per teacher survey question.
-- **Reimbursement** — count of graded AI Proofreader activities per teacher within a chosen date range, for stipend/reimbursement purposes. Users with `local/aiproofreaderreport:notify` can send each teacher a notification with their own count for the chosen range, with an optional goal.
+- **Reimbursement** — count of graded AI Proofreader activities per teacher within a chosen date range, for stipend/reimbursement purposes. Since v0.7.2 each teacher row also shows Students assigned (activities x enrolled MS/HS students), Drafts submitted and Final submissions, so you can spot teachers who haven't assigned enough or are stuck partway and may need help. The table lists everyone who graded in the range plus every grant roster teacher, even with nothing yet. Users with `local/aiproofreaderreport:notify` can send each teacher a summary of their students submitted, final submissions and graded count across their courses for the chosen range. With an optional goal, teachers who have met it get a congratulations; the rest are told whether finishing their outstanding drafts and ungraded finals will meet the goal (no new assignment needed) or how many they will still be short (they may need another activity). The confirmation page previews the exact message before anything is sent.
+
+  **Grant teacher roster.** Not every teacher who grades AI Proofreader activities is in the grant program, and some grant teachers may not have graded anything yet. On the Reimbursement tab, upload a CSV or text file of grant teachers' email addresses (one per line; a header row and extra columns are ignored). The roster is saved, so it only needs uploading again when the list changes - each upload replaces the whole list. Once a roster exists, "Notify teachers" goes to exactly the roster teachers, including those with a graded count of 0, and to no one else. Emails that don't match a Moodle account are listed after the upload and skipped. An upload with no valid email addresses is rejected rather than clearing the roster. With no roster uploaded, notifications go to every teacher on the Reimbursement table (the pre-v0.7.1 behaviour).
 - **Data Dictionary** — downloadable CSV reference of every field this report reads.
 - **Anonymized Export** — placeholder for a future de-identified student data export (see "Planned: anonymized export" below).
 
@@ -90,7 +92,10 @@ Not implemented in this version. When built, it will:
 
 ## Database dictionary (tables this plugin reads)
 
-All tables below belong to `mod_aiproofreader`; this plugin creates no tables of its own.
+All tables below belong to `mod_aiproofreader`. This plugin's own two tables are small admin rosters, not report data:
+
+- `local_aiproofreaderreport_optout` - district student numbers whose parents opted out; excluded from the anonymized export.
+- `local_aiproofreaderreport_grantteacher` - Moodle user ids of grant program teachers; decides who gets reimbursement notifications.
 
 ### `aiproofreader`
 | Field | Description |

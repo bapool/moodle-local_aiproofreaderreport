@@ -2,6 +2,32 @@
 
 All notable changes to `local_aiproofreaderreport` are documented here.
 
+## v0.7.2 - 2026-10-05
+
+### Added
+- Reimbursement tab table now has per-teacher totals so it's easy to see who has assigned enough and where they are in the process: **Students assigned** (AI Proofreader activities x enrolled MS/HS students - the Overview tab's "Students enrolled" summed per teacher), **Drafts submitted** and **Final submissions** (the Overview tab's "Students submitted" and "Final submissions" summed per teacher), followed by the existing **Graded count**.
+- New `report_manager` methods `get_teacher_assigned_totals()` and `get_reimbursement_table_rows()`.
+
+### Changed
+- The Reimbursement table now lists every grant roster teacher (with 0s if they have nothing yet) as well as everyone who graded in the range. Notifications are unchanged.
+
+## v0.7.1 - 2026-10-04
+
+### Added
+- Grant teacher roster on the Reimbursement tab. Upload a CSV or text file of grant teachers' email addresses once; it is saved and used for every later notification run. When a roster exists, "Notify teachers" goes only to roster teachers - including those with 0 graded - and to no one else. Each upload replaces the whole roster; unmatched emails are listed and skipped; an upload with no valid emails is rejected so the roster can't be wiped by a bad file. A "Show roster" list shows who is on it.
+- New table `local_aiproofreaderreport_grantteacher` (upgrade step 2026100400; version 2026100401).
+- New page `grantroster_import.php` handling the upload (requires the `view` and `notify` capabilities).
+- New `report_manager` methods `get_notification_rows()`, `save_grantteacher_roster()` and `get_grantteacher_roster()`.
+- Rewritten teacher notification. Each message now summarises the teacher's students submitted, final submissions and graded count across all their courses for the period. With a goal set: teachers who have met it get a congratulations (and a congratulations subject line); the others are told how many drafts and ungraded finals are outstanding, and either that finishing them will meet the goal (so no new assignment is needed) or how many they will still be short (so they may need another activity). Submitted and final counts use the Overview tab's attribution (editing teacher of the course); the graded count is the Reimbursement number.
+- Notification confirmation page now shows submitted, final and graded columns, a "Goal outlook" column when a goal is entered, and a preview of the exact message the first teacher will get.
+- New `report_manager` methods `get_teacher_activity_totals()`, `get_goal_outlook()` and `build_notification_message()`.
+
+### Changed
+- The "Notify teachers" section on the Reimbursement tab now shows even when no one has graded in the chosen range, so roster teachers with 0 can still be notified.
+- The notification confirmation page says whether the grant roster is in use.
+- Student Survey tab: removed the "Which feedback category helped more" chart, which drew on top of the score distribution chart. The category counts are still shown in the table below.
+- Privacy provider: replaced the null provider with a full metadata/request provider covering the grant roster table and the core_message subsystem link.
+
 ## v0.7.0 - 2026-09-28
 
 ### Added

@@ -64,16 +64,12 @@ if ($summary['total'] === 0) {
         ['class' => 'aiproofreaderreport-responserate']
     );
 
-    // Small charts side by side above the tables.
-    $charts = array_filter([
-        survey_charts::score_distribution($questionlabels, $summary['scores']),
-        survey_charts::category_breakdown($summary['categorybreakdown']),
-    ]);
-    if (!empty($charts)) {
+    // Score distribution chart above the tables. The feedback category
+    // breakdown is shown as a table only (its chart overlapped this one).
+    $chart = survey_charts::score_distribution($questionlabels, $summary['scores']);
+    if ($chart) {
         echo html_writer::start_tag('div', ['class' => 'aiproofreaderreport-charts']);
-        foreach ($charts as $chart) {
-            echo html_writer::div($OUTPUT->render($chart), 'aiproofreaderreport-chart');
-        }
+        echo html_writer::div($OUTPUT->render($chart), 'aiproofreaderreport-chart');
         echo html_writer::end_tag('div');
     }
 

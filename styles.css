@@ -165,6 +165,21 @@
     color: #6c757d;
 }
 
+/* Reimbursement tab: grant teacher roster list. */
+.aiproofreaderreport-grantroster {
+    margin: 0 0 0.75rem;
+}
+
+/* Notification confirmation page: message preview. */
+.aiproofreaderreport-preview {
+    white-space: pre-wrap;
+    font-family: inherit;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 0.75rem;
+    max-width: 48rem;
+}
+
 /* Survey tab charts (classes/survey_charts.php) - kept small, side by side. */
 .aiproofreaderreport-charts {
     display: flex;

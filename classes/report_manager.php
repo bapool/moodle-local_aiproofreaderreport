@@ -19,8 +19,9 @@ namespace local_aiproofreaderreport;
 /**
  * All data-access logic for the AI Proofreader report lives here.
  *
- * This plugin creates no tables of its own — every query reads directly
- * from the existing mod_aiproofreader tables, scoped to MS/HS students.
+ * Report queries read directly from the existing mod_aiproofreader tables,
+ * scoped to MS/HS students. The plugin's own two tables only hold the
+ * export opt-out roster and the grant teacher roster.
  *
  * @package    local_aiproofreaderreport
  * @copyright  2026 Brian Pool
@@ -548,11 +549,274 @@ class report_manager {
     }
 
     /**
-     * Send each teacher on the reimbursement list a notification with their
-     * own graded count for the selected date range.
+     * Per-teacher submission totals across every AI Proofreader activity in
+     * the courses where they are an editing teacher (the same attribution the
+     * Overview tab uses), under the current filters. Submission dates are
+     * bounded by the date range like the Overview tab (s.timecreated).
+     *
+     * Each submission row is one student in one activity, so these are
+     * the Overview tab's per-activity numbers added up.
+     *
+     * @param array $filters
+     * @param int[] $teacherids
+     * @return \stdClass[] keyed by teacher id: submitted, final, draftonly, awaitinggrade
+     */
+    public static function get_teacher_activity_totals(array $filters, array $teacherids): array {
+        global $DB;
+
+        $totals = [];
+        foreach ($teacherids as $teacherid) {
+            $totals[$teacherid] = (object) ['submitted' => 0, 'final' => 0, 'draftonly' => 0, 'awaitinggrade' => 0];
+        }
+        $roleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
+        if (empty($teacherids) || !$roleid) {
+            return $totals;
+        }
+
+        [$where, $params] = self::build_filter_sql($filters, 's.timecreated');
+        [$tinsql, $tinparams] = $DB->get_in_or_equal($teacherids, SQL_PARAMS_NAMED, 'tchr');
+        $params = array_merge($params, $tinparams, [
+            'ctxcourse' => CONTEXT_COURSE,
+            'teacherroleid' => $roleid,
+            'gradedstatus' => 'graded',
+            'gradedstatus2' => 'graded',
+        ]);
+
+        $sql = "SELECT ra.userid AS teacherid,
+                       COUNT(DISTINCT s.id) AS submitted,
+                       COUNT(DISTINCT CASE WHEN s.finaltimesubmitted > 0 THEN s.id END) AS finalcount,
+                       COUNT(DISTINCT CASE WHEN COALESCE(s.finaltimesubmitted, 0) = 0
+                                            AND s.status <> :gradedstatus THEN s.id END) AS draftonly,
+                       COUNT(DISTINCT CASE WHEN s.finaltimesubmitted > 0
+                                            AND s.status <> :gradedstatus2 THEN s.id END) AS awaitinggrade
+                  FROM {aiproofreader} ap
+                  JOIN {aiproofreader_submission} s ON s.aiproofreaderid = ap.id
+                  JOIN {context} ctx ON ctx.instanceid = ap.course AND ctx.contextlevel = :ctxcourse
+                  JOIN {role_assignments} ra ON ra.contextid = ctx.id AND ra.roleid = :teacherroleid
+                 WHERE $where AND ra.userid $tinsql
+              GROUP BY ra.userid";
+
+        foreach ($DB->get_records_sql($sql, $params) as $record) {
+            $totals[$record->teacherid] = (object) [
+                'submitted'     => (int) $record->submitted,
+                'final'         => (int) $record->finalcount,
+                'draftonly'     => (int) $record->draftonly,
+                'awaitinggrade' => (int) $record->awaitinggrade,
+            ];
+        }
+
+        return $totals;
+    }
+
+    /**
+     * Per-teacher "students assigned": for every AI Proofreader activity in
+     * the courses where they are an editing teacher, the number of in-scope
+     * (MS/HS) students enrolled who can submit, added up across activities.
+     * In other words, activities x students - the Overview tab's
+     * "Students enrolled" column summed per teacher.
+     *
+     * Uses the same activity list as the Overview tab (activities with at
+     * least one in-scope submission under the current filters, submission
+     * dates bounded by s.timecreated), so the two tabs always agree.
+     *
+     * @param array $filters
+     * @param int[] $teacherids
+     * @return int[] keyed by teacher id
+     */
+    public static function get_teacher_assigned_totals(array $filters, array $teacherids): array {
+        global $DB;
+
+        $assigned = array_fill_keys($teacherids, 0);
+        $roleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
+        if (empty($teacherids) || !$roleid) {
+            return $assigned;
+        }
+
+        [$where, $params] = self::build_filter_sql($filters, 's.timecreated');
+        [$tinsql, $tinparams] = $DB->get_in_or_equal($teacherids, SQL_PARAMS_NAMED, 'atchr');
+        $params = array_merge($params, $tinparams, [
+            'actxcourse' => CONTEXT_COURSE,
+            'ateacherroleid' => $roleid,
+        ]);
+
+        // One row per teacher + activity they teach.
+        $sql = "SELECT DISTINCT " . $DB->sql_concat('ra.userid', "'-'", 'ap.id') . " AS uniqueid,
+                       ra.userid AS teacherid, ap.id AS apid, ap.course AS courseid
+                  FROM {aiproofreader} ap
+                  JOIN {aiproofreader_submission} s ON s.aiproofreaderid = ap.id
+                  JOIN {context} ctx ON ctx.instanceid = ap.course AND ctx.contextlevel = :actxcourse
+                  JOIN {role_assignments} ra ON ra.contextid = ctx.id AND ra.roleid = :ateacherroleid
+                 WHERE $where AND ra.userid $tinsql";
+        $records = $DB->get_records_sql($sql, $params);
+
+        // Enrolled in-scope students per course, worked out once per course.
+        $scopeids = self::get_scope_userids();
+        $enrolledbycourse = [];
+        foreach ($records as $record) {
+            $courseid = (int) $record->courseid;
+            if (!isset($enrolledbycourse[$courseid])) {
+                $enrolled = get_enrolled_users(
+                    \context_course::instance($courseid),
+                    'mod/aiproofreader:submit'
+                );
+                $enrolledbycourse[$courseid] = count(array_intersect(array_keys($enrolled), $scopeids));
+            }
+            $assigned[$record->teacherid] += $enrolledbycourse[$courseid];
+        }
+
+        return $assigned;
+    }
+
+    /**
+     * Rows for the Reimbursement tab table: every teacher who graded in the
+     * selected range plus every grant roster teacher (so roster teachers
+     * with nothing graded still show, with 0s). A teacher filter, if set,
+     * narrows the list to that teacher. Each row also carries the teacher's
+     * students assigned, drafts submitted and final submissions so it is
+     * easy to see who has assigned enough and where they are in the process.
+     *
+     * The notification list (get_notification_rows()) is unchanged.
+     *
+     * @param array $filters
+     * @return array indexed rows: teacherid, teachername, lastname, firstname,
+     *               assigned, submitted, final, gradedcount
+     */
+    public static function get_reimbursement_table_rows(array $filters): array {
+        $rows = [];
+        foreach (self::get_reimbursement_rows($filters) as $row) {
+            $rows[$row->teacherid] = $row;
+        }
+
+        foreach (self::get_grantteacher_roster() as $user) {
+            if (isset($rows[(int) $user->id])) {
+                continue;
+            }
+            if (!empty($filters['teacherid']) && (int) $user->id !== (int) $filters['teacherid']) {
+                continue;
+            }
+            $rows[(int) $user->id] = (object) [
+                'teacherid'   => (int) $user->id,
+                'teachername' => fullname($user),
+                'lastname'    => $user->lastname,
+                'firstname'   => $user->firstname,
+                'gradedcount' => 0,
+            ];
+        }
+
+        if (empty($rows)) {
+            return [];
+        }
+
+        $teacherids = array_keys($rows);
+        $totals = self::get_teacher_activity_totals($filters, $teacherids);
+        $assigned = self::get_teacher_assigned_totals($filters, $teacherids);
+        foreach ($rows as $teacherid => $row) {
+            $row->assigned = $assigned[$teacherid] ?? 0;
+            $row->submitted = $totals[$teacherid]->submitted ?? 0;
+            $row->final = $totals[$teacherid]->final ?? 0;
+        }
+
+        // Last name, first name. Unknown users sort to the bottom.
+        $rows = array_values($rows);
+        usort($rows, static function ($a, $b) {
+            if (($a->lastname === '') !== ($b->lastname === '')) {
+                return $a->lastname === '' ? 1 : -1;
+            }
+            return strnatcasecmp($a->lastname, $b->lastname)
+                ?: strnatcasecmp($a->firstname, $b->firstname);
+        });
+
+        return $rows;
+    }
+
+    /**
+     * Where a teacher stands against the goal.
+     *
+     * "Projected" is what their graded count will be once every outstanding
+     * submission (drafts not yet final, and finals not yet graded) is
+     * finished and graded.
+     *
+     * @param int $graded Graded count for the period (the Reimbursement number).
+     * @param \stdClass $totals One entry from get_teacher_activity_totals().
+     * @param int $target Goal for the period; 0 means no goal.
+     * @return \stdClass status (nogoal|met|willmeet|short), projected, short
+     */
+    public static function get_goal_outlook(int $graded, \stdClass $totals, int $target): \stdClass {
+        $projected = $graded + $totals->draftonly + $totals->awaitinggrade;
+        if ($target <= 0) {
+            $status = 'nogoal';
+        } else if ($graded >= $target) {
+            $status = 'met';
+        } else if ($projected >= $target) {
+            $status = 'willmeet';
+        } else {
+            $status = 'short';
+        }
+        return (object) [
+            'status'    => $status,
+            'projected' => $projected,
+            'short'     => max(0, $target - $projected),
+        ];
+    }
+
+    /**
+     * Build one teacher's notification subject, plain-text body and small
+     * message. Shared by the send loop and the confirmation page preview.
+     *
+     * @param \stdClass $row One entry from get_notification_rows().
+     * @param \stdClass $totals One entry from get_teacher_activity_totals().
+     * @param int $target Goal for the period; 0 means no goal.
+     * @param string $from Formatted start date.
+     * @param string $to Formatted end date.
+     * @param string $firstname Recipient's first name.
+     * @return \stdClass subject, body, small
+     */
+    public static function build_notification_message(\stdClass $row, \stdClass $totals, int $target,
+            string $from, string $to, string $firstname): \stdClass {
+        $outlook = self::get_goal_outlook($row->gradedcount, $totals, $target);
+        $a = (object) [
+            'firstname'     => $firstname,
+            'from'          => $from,
+            'to'            => $to,
+            'submitted'     => $totals->submitted,
+            'final'         => $totals->final,
+            'count'         => $row->gradedcount,
+            'draftonly'     => $totals->draftonly,
+            'awaitinggrade' => $totals->awaitinggrade,
+            'target'        => $target,
+            'projected'     => $outlook->projected,
+            'short'         => $outlook->short,
+        ];
+
+        $component = 'local_aiproofreaderreport';
+        $parts = [get_string('notify_body', $component, $a)];
+        if ($outlook->status === 'met') {
+            $parts[] = get_string('notify_body_targetmet', $component, $a);
+        } else {
+            $parts[] = get_string('notify_body_outstanding', $component, $a);
+            if ($outlook->status === 'willmeet') {
+                $parts[] = get_string('notify_body_willmeet', $component, $a);
+            } else if ($outlook->status === 'short') {
+                $parts[] = get_string('notify_body_willbeshort', $component, $a);
+            }
+        }
+        $parts[] = get_string('notify_body_footer', $component);
+
+        $subjectkey = $outlook->status === 'met' ? 'notify_subject_met' : 'notify_subject';
+        return (object) [
+            'subject' => get_string($subjectkey, $component, $a),
+            'body'    => implode("\n\n", $parts),
+            'small'   => get_string('notify_small', $component, $a),
+        ];
+    }
+
+    /**
+     * Send each teacher on the notification list (see get_notification_rows())
+     * a summary of their submitted, final and graded counts for the selected
+     * date range, with a congratulations or a goal outlook when a goal is set.
      *
      * @param array $filters Must hold a valid date range (see has_valid_date_range()).
-     * @param int $target Optional grant target for the period; 0 leaves it out of the message.
+     * @param int $target Optional grant goal for the period; 0 leaves it out of the message.
      * @return \stdClass counts: sent, failed
      */
     public static function send_reimbursement_notifications(array $filters, int $target = 0): \stdClass {
@@ -567,39 +831,35 @@ class report_manager {
         $from = userdate(strtotime($filters['datefrom'] . ' 00:00:00'), $dateformat);
         $to = userdate(strtotime($filters['dateto'] . ' 23:59:59'), $dateformat);
 
-        foreach (self::get_reimbursement_rows($filters) as $row) {
+        $rows = self::get_notification_rows($filters);
+        $alltotals = self::get_teacher_activity_totals($filters, array_column($rows, 'teacherid'));
+
+        foreach ($rows as $row) {
             $recipient = \core_user::get_user($row->teacherid);
             if (!$recipient || $recipient->deleted || $recipient->suspended) {
                 $result->failed++;
                 continue;
             }
 
-            $a = (object) [
-                'firstname' => $recipient->firstname,
-                'count'     => $row->gradedcount,
-                'from'      => $from,
-                'to'        => $to,
-                'target'    => $target,
-                'remaining' => max(0, $target - $row->gradedcount),
-            ];
-
-            $body = get_string('notify_body', 'local_aiproofreaderreport', $a);
-            if ($target > 0) {
-                $targetkey = $row->gradedcount >= $target ? 'notify_body_targetmet' : 'notify_body_target';
-                $body .= "\n\n" . get_string($targetkey, 'local_aiproofreaderreport', $a);
-            }
-            $body .= "\n\n" . get_string('notify_body_footer', 'local_aiproofreaderreport');
+            $content = self::build_notification_message(
+                $row,
+                $alltotals[$row->teacherid],
+                $target,
+                $from,
+                $to,
+                $recipient->firstname
+            );
 
             $message = new \core\message\message();
             $message->component = 'local_aiproofreaderreport';
             $message->name = 'reimbursementcount';
             $message->userfrom = $USER;
             $message->userto = $recipient;
-            $message->subject = get_string('notify_subject', 'local_aiproofreaderreport', $a);
-            $message->fullmessage = $body;
+            $message->subject = $content->subject;
+            $message->fullmessage = $content->body;
             $message->fullmessageformat = FORMAT_PLAIN;
-            $message->fullmessagehtml = text_to_html(s($body), false, false, true);
-            $message->smallmessage = get_string('notify_small', 'local_aiproofreaderreport', $a);
+            $message->fullmessagehtml = text_to_html(s($content->body), false, false, true);
+            $message->smallmessage = $content->small;
             $message->notification = 1;
             $message->courseid = SITEID;
 
@@ -788,5 +1048,131 @@ class report_manager {
     public static function get_optout_roster_count(): int {
         global $DB;
         return $DB->count_records('local_aiproofreaderreport_optout');
+    }
+
+    /**
+     * Teachers who should receive reimbursement notifications, with their
+     * graded count under the current filters.
+     *
+     * When the grant roster is empty, this is everyone on the Reimbursement
+     * table (the original behaviour). Once a roster has been uploaded, it is
+     * exactly the roster teachers - including those with 0 graded - and no
+     * one else. A teacher filter, if set, narrows either list to that teacher.
+     *
+     * @param array $filters
+     * @return array indexed rows: teacherid, teachername, lastname, firstname, gradedcount
+     */
+    public static function get_notification_rows(array $filters): array {
+        $rows = self::get_reimbursement_rows($filters);
+
+        $roster = self::get_grantteacher_roster();
+        if (empty($roster)) {
+            return $rows;
+        }
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[$row->teacherid] = $row->gradedcount;
+        }
+
+        $result = [];
+        foreach ($roster as $user) {
+            if (!empty($filters['teacherid']) && (int) $user->id !== (int) $filters['teacherid']) {
+                continue;
+            }
+            $result[] = (object) [
+                'teacherid'   => (int) $user->id,
+                'teachername' => fullname($user),
+                'lastname'    => $user->lastname,
+                'firstname'   => $user->firstname,
+                'gradedcount' => $counts[$user->id] ?? 0,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Replace the grant teacher roster with the accounts matching the given
+     * email addresses. A full replace (not a merge), like the opt-out roster:
+     * each upload is the complete list for the grant program.
+     *
+     * Emails are matched case-insensitively against non-deleted local
+     * accounts. If more than one account shares an email, an active
+     * (not suspended) account is preferred, then the lowest id.
+     *
+     * The caller must make sure at least one email is given, so a bad file
+     * can't silently wipe the roster.
+     *
+     * @param string[] $emails
+     * @param int $importedby userid of the admin running the upload.
+     * @return \stdClass saved (int), notfound (string[] of unmatched emails)
+     */
+    public static function save_grantteacher_roster(array $emails, int $importedby): \stdClass {
+        global $CFG, $DB;
+
+        $emails = array_values(array_unique(array_filter(array_map(static function ($v) {
+            return \core_text::strtolower(trim($v));
+        }, $emails), static function ($v) {
+            return $v !== '';
+        })));
+
+        $userids = [];
+        $notfound = [];
+        $select = 'deleted = 0 AND mnethostid = :mnethostid AND ' . $DB->sql_equal('email', ':email', false);
+        foreach ($emails as $email) {
+            $matches = $DB->get_records_select(
+                'user',
+                $select,
+                ['mnethostid' => $CFG->mnet_localhost_id, 'email' => $email],
+                'suspended ASC, id ASC',
+                'id',
+                0,
+                1
+            );
+            if (empty($matches)) {
+                $notfound[] = $email;
+                continue;
+            }
+            $userids[(int) reset($matches)->id] = true;
+        }
+
+        $transaction = $DB->start_delegated_transaction();
+        $DB->delete_records('local_aiproofreaderreport_grantteacher');
+
+        $now = time();
+        $records = [];
+        foreach (array_keys($userids) as $userid) {
+            $records[] = (object) [
+                'userid'      => $userid,
+                'timecreated' => $now,
+                'importedby'  => $importedby,
+            ];
+        }
+        if (!empty($records)) {
+            $DB->insert_records('local_aiproofreaderreport_grantteacher', $records);
+        }
+        $transaction->allow_commit();
+
+        return (object) ['saved' => count($records), 'notfound' => $notfound];
+    }
+
+    /**
+     * The grant teacher roster as user records (id, email, suspended and all
+     * name fields), sorted by last name, first name.
+     *
+     * @return \stdClass[] keyed by user id
+     */
+    public static function get_grantteacher_roster(): array {
+        global $DB;
+
+        $namefields = \core_user\fields::for_name()->get_sql('u')->selects;
+        return $DB->get_records_sql(
+            "SELECT u.id, u.email, u.suspended $namefields
+               FROM {local_aiproofreaderreport_grantteacher} gt
+               JOIN {user} u ON u.id = gt.userid
+              WHERE u.deleted = 0
+           ORDER BY u.lastname, u.firstname, u.id"
+        );
     }
 }
