@@ -71,6 +71,9 @@ if (empty($rows)) {
 
 if ($confirm && confirm_sesskey()) {
     $result = report_manager::send_reimbursement_notifications($filters, $target);
+    // The dates (and goal, if one was given) just sent become the quarter
+    // teachers see on their "My grant numbers" page. The label is kept.
+    report_manager::save_quarter($filters['datefrom'], $filters['dateto'], null, $target > 0 ? $target : null);
     $type = $result->failed > 0 ? \core\output\notification::NOTIFY_WARNING : \core\output\notification::NOTIFY_SUCCESS;
     redirect($returnurl, get_string('notify_sent', 'local_aiproofreaderreport', $result), null, $type);
 }
@@ -134,6 +137,7 @@ $message = get_string('notify_confirm', 'local_aiproofreaderreport', $a);
 if ($target > 0) {
     $message .= ' ' . get_string('notify_confirm_target', 'local_aiproofreaderreport', $target);
 }
+$message .= ' ' . get_string('notify_savesquarter', 'local_aiproofreaderreport');
 $confirmurl = new moodle_url('/local/aiproofreaderreport/notify.php', $filterparams + ['target' => $target, 'confirm' => 1]);
 $confirmbutton = new single_button(
     $confirmurl,

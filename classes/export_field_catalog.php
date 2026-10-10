@@ -106,10 +106,18 @@ class export_field_catalog {
         // the AI de-identified copies meant for release. They stay null
         // until mod_aiproofreader's nightly PII redaction task processes
         // that submission (off by default there too).
+        //
+        // sub_initialtextoriginal/sub_finaltextoriginal are the raw,
+        // NOT de-identified texts, for internal use only (re-running the AI
+        // to test prompt changes, and checking the redaction against the
+        // original). They are PII, so they are off by default and cleared
+        // by "Privacy defaults". Each sits right after its redacted twin so
+        // the two land in neighbouring CSV columns for easy comparison.
         $submissionfields = [
             'sub_status'                 => ['status', self::CATEGORY_STRUCTURAL],
             'sub_initialsubmissiontype'  => ['initialsubmissiontype', self::CATEGORY_STRUCTURAL],
             'sub_initialtext'            => ['initialtextredacted', self::CATEGORY_STRUCTURAL],
+            'sub_initialtextoriginal'    => ['initialtext', self::CATEGORY_PII],
             'sub_initialgdrivelink'      => ['initialgdrivelink', self::CATEGORY_PII],
             'sub_initialtimesubmitted'   => ['initialtimesubmitted', self::CATEGORY_STRUCTURAL],
             'sub_feedbackgrammar'        => ['feedbackgrammar', self::CATEGORY_STRUCTURAL],
@@ -118,12 +126,14 @@ class export_field_catalog {
             'sub_feedbackaimodel'        => ['feedbackaimodel', self::CATEGORY_STRUCTURAL],
             'sub_finalsubmissiontype'    => ['finalsubmissiontype', self::CATEGORY_STRUCTURAL],
             'sub_finaltext'              => ['finaltextredacted', self::CATEGORY_STRUCTURAL],
+            'sub_finaltextoriginal'      => ['finaltext', self::CATEGORY_PII],
             'sub_finalgdrivelink'        => ['finalgdrivelink', self::CATEGORY_PII],
             'sub_finaltimesubmitted'     => ['finaltimesubmitted', self::CATEGORY_STRUCTURAL],
             'sub_aicomparison'           => ['aicomparison', self::CATEGORY_STRUCTURAL],
             'sub_aicomparisontimecreated' => ['aicomparisontimecreated', self::CATEGORY_STRUCTURAL],
             'sub_comparisonaimodel'      => ['comparisonaimodel', self::CATEGORY_STRUCTURAL],
             'sub_aifollowedscore'        => ['aifollowedscore', self::CATEGORY_STRUCTURAL],
+            'sub_teacherfinalized'       => ['teacherfinalized', self::CATEGORY_STRUCTURAL],
             'sub_timecreated'            => ['timecreated', self::CATEGORY_STRUCTURAL],
             'sub_timemodified'           => ['timemodified', self::CATEGORY_STRUCTURAL],
         ];
@@ -226,6 +236,47 @@ class export_field_catalog {
             }
         }
         return $keys;
+    }
+
+    /** @var string User preference holding the saved export field selection. */
+    const PREF_SAVEDFIELDS = 'local_aiproofreaderreport_exportfields';
+
+    /**
+     * Keep only keys that exist in the catalog, in catalog order.
+     *
+     * @param string[] $keys
+     * @return string[]
+     */
+    public static function clean_keys(array $keys): array {
+        return array_values(array_intersect(array_keys(self::get_catalog()), $keys));
+    }
+
+    /**
+     * The current user's saved export field selection, or null if they
+     * have never saved one (the page then falls back to privacy defaults).
+     * Keys no longer in the catalog are dropped; new catalog fields added
+     * after the save come up unchecked.
+     *
+     * @return string[]|null
+     */
+    public static function get_saved_keys(): ?array {
+        $saved = get_user_preferences(self::PREF_SAVEDFIELDS, null);
+        if ($saved === null || $saved === '') {
+            return null;
+        }
+        return self::clean_keys(explode(',', $saved));
+    }
+
+    /**
+     * Save the current user's export field selection.
+     *
+     * @param string[] $keys
+     * @return int number of fields saved
+     */
+    public static function save_keys(array $keys): int {
+        $keys = self::clean_keys($keys);
+        set_user_preference(self::PREF_SAVEDFIELDS, implode(',', $keys));
+        return count($keys);
     }
 
     /**

@@ -244,6 +244,7 @@ class report_manager {
                        ap.gradelevel AS gradelevel, c.fullname AS coursename,
                        COUNT(DISTINCT s.userid) AS submittedcount,
                        COUNT(DISTINCT CASE WHEN s.finaltimesubmitted > 0 THEN s.userid END) AS finalcount,
+                       COUNT(DISTINCT CASE WHEN s.teacherfinalized = 1 THEN s.userid END) AS finalizedcount,
                        COUNT(DISTINCT CASE WHEN s.status = 'graded' THEN s.userid END) AS gradedcount
                   FROM {aiproofreader} ap
                   JOIN {course} c ON c.id = ap.course
@@ -559,14 +560,16 @@ class report_manager {
      *
      * @param array $filters
      * @param int[] $teacherids
-     * @return \stdClass[] keyed by teacher id: submitted, final, draftonly, awaitinggrade
+     * @return \stdClass[] keyed by teacher id: submitted, final, finalized, draftonly, awaitinggrade
      */
     public static function get_teacher_activity_totals(array $filters, array $teacherids): array {
         global $DB;
 
         $totals = [];
         foreach ($teacherids as $teacherid) {
-            $totals[$teacherid] = (object) ['submitted' => 0, 'final' => 0, 'draftonly' => 0, 'awaitinggrade' => 0];
+            $totals[$teacherid] = (object) [
+                'submitted' => 0, 'final' => 0, 'finalized' => 0, 'draftonly' => 0, 'awaitinggrade' => 0,
+            ];
         }
         $roleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
         if (empty($teacherids) || !$roleid) {
@@ -585,6 +588,7 @@ class report_manager {
         $sql = "SELECT ra.userid AS teacherid,
                        COUNT(DISTINCT s.id) AS submitted,
                        COUNT(DISTINCT CASE WHEN s.finaltimesubmitted > 0 THEN s.id END) AS finalcount,
+                       COUNT(DISTINCT CASE WHEN s.teacherfinalized = 1 THEN s.id END) AS finalizedcount,
                        COUNT(DISTINCT CASE WHEN COALESCE(s.finaltimesubmitted, 0) = 0
                                             AND s.status <> :gradedstatus THEN s.id END) AS draftonly,
                        COUNT(DISTINCT CASE WHEN s.finaltimesubmitted > 0
@@ -600,6 +604,7 @@ class report_manager {
             $totals[$record->teacherid] = (object) [
                 'submitted'     => (int) $record->submitted,
                 'final'         => (int) $record->finalcount,
+                'finalized'     => (int) $record->finalizedcount,
                 'draftonly'     => (int) $record->draftonly,
                 'awaitinggrade' => (int) $record->awaitinggrade,
             ];
@@ -679,7 +684,7 @@ class report_manager {
      *
      * @param array $filters
      * @return array indexed rows: teacherid, teachername, lastname, firstname,
-     *               assigned, submitted, final, gradedcount
+     *               assigned, submitted, final, finalized, gradedcount
      */
     public static function get_reimbursement_table_rows(array $filters): array {
         $rows = [];
@@ -714,6 +719,7 @@ class report_manager {
             $row->assigned = $assigned[$teacherid] ?? 0;
             $row->submitted = $totals[$teacherid]->submitted ?? 0;
             $row->final = $totals[$teacherid]->final ?? 0;
+            $row->finalized = $totals[$teacherid]->finalized ?? 0;
         }
 
         // Last name, first name. Unknown users sort to the bottom.
@@ -896,9 +902,19 @@ class report_manager {
             ['aiproofreader_submission', 'aiproofreaderid', 'Links to the aiproofreader activity instance.'],
             ['aiproofreader_submission', 'userid', 'Student user ID.'],
             ['aiproofreader_submission', 'status', 'draft, feedbackpending, feedbackready, finalsubmitted, graded.'],
+            ['aiproofreader_submission', 'initialtext', 'Original draft text as the student submitted it (NOT de-identified).'],
+            ['aiproofreader_submission', 'initialtextredacted', 'AI de-identified copy of the draft text, for release.'],
             ['aiproofreader_submission', 'initialtimesubmitted', 'Unix timestamp of the draft submission.'],
+            ['aiproofreader_submission', 'finaltext', 'Original final text as the student submitted it (NOT de-identified).'],
+            ['aiproofreader_submission', 'finaltextredacted', 'AI de-identified copy of the final text, for release.'],
             ['aiproofreader_submission', 'finaltimesubmitted', 'Unix timestamp of the final submission.'],
             ['aiproofreader_submission', 'aifollowedscore', '1-5 AI-generated score of how well feedback was followed.'],
+            [
+                'aiproofreader_submission',
+                'teacherfinalized',
+                '1 if the teacher closed the assignment with "Finalize grade" at the end of the grading period, ' .
+                    'so the final version is a copy of the draft; 0 if the student made their own final submission.',
+            ],
             [
                 'aiproofreader_submission',
                 'feedbackaimodel',
@@ -995,10 +1011,11 @@ class report_manager {
              LEFT JOIN {aiproofreader_teachersurvey} ts ON ts.submissionid = s.id';
 
         if ($needcontacts && export_field_catalog::contacts_table_exists()) {
-            // StudentNumber is stored as bigint in contacts but idnumber is
-            // varchar in Moodle's user table - cast so the join works
-            // regardless of driver-specific implicit conversion behaviour.
-            $joins .= "\n             LEFT JOIN {contacts} c ON " . $DB->sql_cast_char2int('u.idnumber') . ' = c.StudentNumber';
+            // StudentNumber may be a number in contacts while idnumber is
+            // text in Moodle's user table. Compare as text: casting idnumber
+            // to a number fails on PostgreSQL for an empty or non-numeric
+            // idnumber, which would break the whole download.
+            $joins .= "\n             LEFT JOIN {contacts} c ON u.idnumber = " . $DB->sql_cast_to_char('c.StudentNumber');
         }
 
         $sql = 'SELECT ' . implode(",\n                   ", $selects) . "
@@ -1180,5 +1197,67 @@ class report_manager {
               WHERE u.deleted = 0
            ORDER BY u.lastname, u.firstname, u.id"
         );
+    }
+
+    /**
+     * Whether a user is on the grant teacher roster.
+     *
+     * @param int $userid
+     * @return bool
+     */
+    public static function is_grant_teacher(int $userid): bool {
+        global $DB;
+        return $DB->record_exists('local_aiproofreaderreport_grantteacher', ['userid' => $userid]);
+    }
+
+    /**
+     * The saved quarter: label, date range (YYYY-MM-DD) and graded goal.
+     * Teachers see these on their "My grant numbers" page.
+     *
+     * @return \stdClass label, datefrom, dateto, target (int, 0 = no goal), isset (bool)
+     */
+    public static function get_quarter(): \stdClass {
+        $component = 'local_aiproofreaderreport';
+        $quarter = (object) [
+            'label'    => (string) get_config($component, 'quarterlabel'),
+            'datefrom' => (string) get_config($component, 'quarterdatefrom'),
+            'dateto'   => (string) get_config($component, 'quarterdateto'),
+            'target'   => (int) get_config($component, 'quartertarget'),
+        ];
+        $quarter->isset = self::has_valid_date_range((array) $quarter);
+        return $quarter;
+    }
+
+    /**
+     * Save the quarter shown to teachers. The label and goal are left as
+     * they are when null is passed, so sending notifications can update the
+     * dates (and goal) without touching the label.
+     *
+     * @param string $datefrom YYYY-MM-DD
+     * @param string $dateto YYYY-MM-DD
+     * @param string|null $label
+     * @param int|null $target
+     */
+    public static function save_quarter(string $datefrom, string $dateto, ?string $label = null, ?int $target = null): void {
+        $component = 'local_aiproofreaderreport';
+        set_config('quarterdatefrom', $datefrom, $component);
+        set_config('quarterdateto', $dateto, $component);
+        if ($label !== null) {
+            set_config('quarterlabel', trim($label), $component);
+        }
+        if ($target !== null) {
+            set_config('quartertarget', max(0, $target), $component);
+        }
+    }
+
+    /**
+     * Whether the HS and MS management courses have been chosen in the
+     * plugin settings. Until at least one is set, every report is empty.
+     *
+     * @return bool
+     */
+    public static function scope_configured(): bool {
+        return (int) get_config('local_aiproofreaderreport', 'hscourseid') > 0
+            || (int) get_config('local_aiproofreaderreport', 'mscourseid') > 0;
     }
 }

@@ -45,6 +45,7 @@ if (empty($rows)) {
         get_string('reimbursement_studentsassigned', 'local_aiproofreaderreport'),
         get_string('reimbursement_draftssubmitted', 'local_aiproofreaderreport'),
         get_string('reimbursement_finalsubmissions', 'local_aiproofreaderreport'),
+        get_string('overview_teacherfinalized', 'local_aiproofreaderreport'),
         get_string('reimbursement_gradedcount', 'local_aiproofreaderreport'),
     ];
     $table->attributes['class'] = 'generaltable aiproofreaderreport-table';
@@ -55,6 +56,7 @@ if (empty($rows)) {
             $row->assigned,
             $row->submitted,
             $row->final,
+            $row->finalized,
             $row->gradedcount,
         ];
     }
@@ -140,6 +142,7 @@ if (has_capability('local/aiproofreaderreport:notify', context_system::instance(
         echo html_writer::empty_tag('input', [
             'type' => 'number', 'name' => 'target', 'id' => 'n_target', 'min' => 0, 'step' => 1,
             'class' => 'form-control',
+            'value' => report_manager::get_quarter()->target ?: '',
         ]);
         echo html_writer::end_tag('div');
 

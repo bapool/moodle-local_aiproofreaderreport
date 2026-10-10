@@ -49,6 +49,9 @@ if ($type === 'datadictionary') {
 
 if ($type === 'anonexport') {
     require_capability('local/aiproofreaderreport:export', $context);
+    // The export form posts with a sesskey (since v0.7.3), so the download
+    // can only be triggered from the Anonymized Export tab itself.
+    require_sesskey();
 
     $selectedkeys = optional_param_array('fields', [], PARAM_ALPHANUMEXT);
     if (empty($selectedkeys)) {

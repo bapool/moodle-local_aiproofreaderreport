@@ -55,14 +55,14 @@ if ($hassiteconfig) {
                     'key' => 'hscourseid',
                     'label' => get_string('hscourseid', 'local_aiproofreaderreport'),
                     'desc' => get_string('hscourseid_desc', 'local_aiproofreaderreport'),
-                    'default' => 53,
+                    'default' => '',
                 ],
                 [
                     'type' => 'text',
                     'key' => 'mscourseid',
                     'label' => get_string('mscourseid', 'local_aiproofreaderreport'),
                     'desc' => get_string('mscourseid_desc', 'local_aiproofreaderreport'),
-                    'default' => 54,
+                    'default' => '',
                 ],
             ]
         ));

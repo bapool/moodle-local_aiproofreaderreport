@@ -65,6 +65,17 @@ foreach ($tabdefs as $tabid => $stringkey) {
 }
 print_tabs([$tabobjects], $tab);
 
+// Until the HS/MS management courses are chosen, no student is in scope and
+// every tab is empty - say so rather than showing silent zeros.
+if (!report_manager::scope_configured()) {
+    $settingsurl = new moodle_url('/admin/settings.php', ['section' => 'local_aiproofreaderreport_settings']);
+    echo $OUTPUT->notification(
+        get_string('scope_notconfigured', 'local_aiproofreaderreport', $settingsurl->out(false)),
+        \core\output\notification::NOTIFY_WARNING,
+        false
+    );
+}
+
 // Filter bar, shared across all tabs; datadictionary/anonexport ignore it.
 if (!in_array($tab, ['datadictionary', 'anonexport'], true)) {
     require(__DIR__ . '/inc/filter_bar.php');

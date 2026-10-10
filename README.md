@@ -22,6 +22,8 @@ An admin/manager-facing analytics report for **mod_aiproofreader** (AI Proofread
 > - **Data Dictionary** — a downloadable CSV reference of every field the report reads.
 > - **Anonymized Export** — de-identified student data export for research or third-party sharing, with an opt-out roster import and a field picker that defaults to excluding personally identifying columns.
 >
+> Grant teachers can check their own numbers for the current quarter from a link on their Moodle profile page.
+>
 > All report data is scoped to Middle School and High School students only, via two admin-configurable management course IDs. The plugin also provides a single settings page for controlling mod_aiproofreader's survey system site-wide — turning surveys on/off, showing or hiding individual questions, editing their wording, and tracking which AI model/provider generated each piece of feedback.
 
 This plugin stores no report data of its own (only two small admin rosters - see the database dictionary below) — it reads directly from the existing `mod_aiproofreader` tables and reports on usage across every course, scoped to Middle School and High School students only.
@@ -40,8 +42,15 @@ Accessible under **Site administration → Reports → AI Proofreader Report**.
 - **Reimbursement** — count of graded AI Proofreader activities per teacher within a chosen date range, for stipend/reimbursement purposes. Since v0.7.2 each teacher row also shows Students assigned (activities x enrolled MS/HS students), Drafts submitted and Final submissions, so you can spot teachers who haven't assigned enough or are stuck partway and may need help. The table lists everyone who graded in the range plus every grant roster teacher, even with nothing yet. Users with `local/aiproofreaderreport:notify` can send each teacher a summary of their students submitted, final submissions and graded count across their courses for the chosen range. With an optional goal, teachers who have met it get a congratulations; the rest are told whether finishing their outstanding drafts and ungraded finals will meet the goal (no new assignment needed) or how many they will still be short (they may need another activity). The confirmation page previews the exact message before anything is sent.
 
   **Grant teacher roster.** Not every teacher who grades AI Proofreader activities is in the grant program, and some grant teachers may not have graded anything yet. On the Reimbursement tab, upload a CSV or text file of grant teachers' email addresses (one per line; a header row and extra columns are ignored). The roster is saved, so it only needs uploading again when the list changes - each upload replaces the whole list. Once a roster exists, "Notify teachers" goes to exactly the roster teachers, including those with a graded count of 0, and to no one else. Emails that don't match a Moodle account are listed after the upload and skipped. An upload with no valid email addresses is rejected rather than clearing the roster. With no roster uploaded, notifications go to every teacher on the Reimbursement table (the pre-v0.7.1 behaviour).
+  **Quarter dates.** "Save quarter dates" on the filter bar saves a quarter name, the dates in the date boxes and an optional graded goal, without sending anything. "Apply quarter dates" puts the saved dates back into the filters. Sending notifications also saves the dates (and goal, if entered) it used, keeping the name. The saved quarter is what grant teachers see on their own page (below). Both the save and the notify buttons need `local/aiproofreaderreport:notify`.
+
+  **Teacher-finalized.** The Overview and Reimbursement tabs show a "Teacher-finalized" column: drafts a teacher graded as final with AI Proofreader's "Finalize grade" (end of a grading period, the student never submitted a final version). They are also counted in Final submissions and, once graded, in Graded.
 - **Data Dictionary** — downloadable CSV reference of every field this report reads.
-- **Anonymized Export** — placeholder for a future de-identified student data export (see "Planned: anonymized export" below).
+- **Anonymized Export** — de-identified student data export as a CSV. Tick the fields you want; "Privacy defaults" clears the personally identifying ones and "Deselect all" clears everything. "Save export items" remembers your ticked fields (per user) so they are ticked again next time. The Personally identifying column also offers the original, NOT de-identified draft and final text: these are for internal testing only (re-running the AI after prompt changes, and checking the redaction against the original) and must never be shared; they sit next to the de-identified text in the CSV for comparison. The opt-out roster import (students to leave out of every export) is at the bottom of the tab.
+
+### My AI Proofreader grant numbers (teachers)
+
+Teachers on the grant roster get a **My AI Proofreader grant numbers** link in the Reports section of their own Moodle profile page (`local/aiproofreaderreport/mynumbers.php`). It shows the saved quarter's name and dates, their totals row (the same numbers as the Reimbursement tab and their notification email, plus their goal and outlook when a goal is saved), and their per-activity breakdown from the Overview tab. Teachers can't change the dates and only ever see their own numbers; teachers not on the roster get no link and can't open the page. Anyone with `local/aiproofreaderreport:view` can open the page and pick any roster teacher to see exactly what that teacher sees.
 
 All report tabs (except Data Dictionary and Anonymized Export) share one filter bar: course, teacher, grade level, group (once a course is selected), and a date range.
 
@@ -76,26 +85,35 @@ php admin/cli/scheduled_task.php --execute='\local_aiproofreaderreport\task\clea
 
 ## Scope: MS/HS only
 
-"In scope" means a student is enrolled in either the High School or Middle School **management course**, whose course IDs are set under the plugin's settings page (Site administration → Plugins → Local plugins → AI Proofreader Report settings). Defaults match `mod_mtssdashboard`'s convention: HS = 53, MS = 54. Elementary students are excluded because they are not enrolled in either management course.
+"In scope" means a student is enrolled in either the High School or Middle School **management course**, whose course IDs are set under the plugin's settings page (Site administration → Plugins → Local plugins → AI Proofreader Report settings). Both are blank on a new install, and every tab shows a setup notice (with a link to the settings) until at least one is set, so the report can never silently count the wrong students. Elementary students are excluded because they are not enrolled in either management course.
+
+## Optional district contacts table
+
+If the Moodle database has a table named `contacts` (a district student information export, not part of Moodle), the Anonymized Export offers its school and demographic fields. Rows are matched to Moodle users by `contacts.StudentNumber` = the user's **ID number** (`user.idnumber`), compared as text, so an empty or non-numeric ID number simply finds no match. Columns read, all optional apart from `StudentNumber`: `StudentNumber`, `SchoolYear`, `SchoolCode`, `DistrictID`, `SchoolID`, `StudentStatus`, `LastName`, `FirstName`, `City`, `State`, `GradeLevelCode`, `IEP`, `Status504`, `StudentFreeLunchStatus`, `Gifted`, `Gender`, `StudentEthnicity`. Sites without the table see none of these fields.
 
 ## Permissions
 
 - `local/aiproofreaderreport:view` — Managers and Site Administrators. Grants access to all report tabs and the data dictionary download.
+- `local/aiproofreaderreport:notify` — Managers and Site Administrators. Upload the grant roster, save quarter dates and send teachers their counts.
+- Teachers on the grant roster need no capability to open their own My AI Proofreader grant numbers page.
 - `local/aiproofreaderreport:export` — no role has this by default; only Site Administrators (via the built-in "doanything" override) can use it. This will gate the anonymized student data export once it's built.
 
-## Planned: anonymized export
+## Anonymized export: how it works
 
-Not implemented in this version. When built, it will:
-- Generate a fresh anonymous student ID each export run (no persistent identity mapping is kept between exports).
-- Strip PII (student names and other identifying text) out of submission and feedback text, not just replace the student ID.
-- Let the site admin choose which fields to include per export.
+- The anonymous student ID is computed by mod_aiproofreader (`aiproofreader_get_anon_id()`).
+- "Draft/Final submission text (de-identified)" come from `initialtextredacted` / `finaltextredacted`, which mod_aiproofreader's nightly PII redaction task fills in. They are blank until that task has processed the submission.
+- "Draft/Final submission text (original - NOT de-identified)" are the raw `initialtext` / `finaltext`. Internal testing only, never for release.
+- Students on the opt-out roster are left out of every export.
+- Saved export items are stored per user in the `local_aiproofreaderreport_exportfields` user preference.
 
 ## Database dictionary (tables this plugin reads)
 
 All tables below belong to `mod_aiproofreader`. This plugin's own two tables are small admin rosters, not report data:
 
-- `local_aiproofreaderreport_optout` - district student numbers whose parents opted out; excluded from the anonymized export.
-- `local_aiproofreaderreport_grantteacher` - Moodle user ids of grant program teachers; decides who gets reimbursement notifications.
+- `local_aiproofreaderreport_optout` - district student numbers (matched to `user.idnumber`) whose parents opted out; excluded from the anonymized export. Each row also records when it was uploaded and by whom. Personal data, declared in the privacy provider (export and deletion).
+- `local_aiproofreaderreport_grantteacher` - Moodle user ids of grant program teachers; decides who gets reimbursement notifications and who can open the My AI Proofreader grant numbers page. Declared in the privacy provider.
+
+The saved quarter is stored as plugin settings (`quarterlabel`, `quarterdatefrom`, `quarterdateto`, `quartertarget`), not in a table.
 
 ### `aiproofreader`
 | Field | Description |
@@ -118,6 +136,7 @@ All tables below belong to `mod_aiproofreader`. This plugin's own two tables are
 | feedbackaimodel | Label identifying the AI model/provider that generated the feedback - see "AI model tracking" below |
 | comparisonaimodel | Label identifying the AI model/provider that generated the comparison - see "AI model tracking" below |
 | aifollowedscore | 1-5 AI-generated score of how well feedback was followed |
+| teacherfinalized | 1 if the teacher closed the assignment with "Finalize grade" (the final version is a copy of the draft), 0 if the student made their own final submission |
 
 ### `aiproofreader_studentsurvey`
 Any field below may be `null` if that question has been individually disabled in survey settings, or if the whole survey system is off.

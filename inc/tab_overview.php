@@ -42,6 +42,7 @@ if (empty($rows)) {
         get_string('overview_enrolled', 'local_aiproofreaderreport'),
         get_string('overview_submitted', 'local_aiproofreaderreport'),
         get_string('overview_finalsubmitted', 'local_aiproofreaderreport'),
+        get_string('overview_teacherfinalized', 'local_aiproofreaderreport'),
         get_string('overview_graded', 'local_aiproofreaderreport'),
         get_string('overview_aimodels', 'local_aiproofreaderreport'),
     ];
@@ -56,6 +57,7 @@ if (empty($rows)) {
             $row->enrolledcount,
             $row->submittedcount,
             $row->finalcount,
+            $row->finalizedcount,
             $row->gradedcount,
             $row->aimodels !== '' ? $row->aimodels : '-',
         ];

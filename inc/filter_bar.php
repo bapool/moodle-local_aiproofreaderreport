@@ -97,7 +97,42 @@ echo html_writer::link(
     get_string('filter_clear', 'local_aiproofreaderreport'),
     ['class' => 'btn btn-secondary ml-1']
 );
+
+// Quarter dates: the saved quarter is what teachers see on their "My grant
+// numbers" page. Saving uses the dates currently in the date boxes.
+$quarter = report_manager::get_quarter();
+$canmanagequarter = has_capability('local/aiproofreaderreport:notify', context_system::instance());
+if ($canmanagequarter) {
+    echo html_writer::empty_tag('input', [
+        'type' => 'submit',
+        'value' => get_string('quarter_save', 'local_aiproofreaderreport'),
+        'class' => 'btn btn-secondary ml-1',
+        'formaction' => (new moodle_url('/local/aiproofreaderreport/savequarter.php'))->out(false),
+    ]);
+}
+if ($quarter->isset) {
+    $applyfilters = ['datefrom' => $quarter->datefrom, 'dateto' => $quarter->dateto] + $filters;
+    echo html_writer::link(
+        new moodle_url('/local/aiproofreaderreport/index.php', ['tab' => $tab] + report_manager::filters_to_params($applyfilters)),
+        get_string('quarter_apply', 'local_aiproofreaderreport'),
+        ['class' => 'btn btn-secondary ml-1']
+    );
+}
 echo html_writer::end_tag('div');
 
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('form');
+
+$dateformat = get_string('strftimedate', 'langconfig');
+if ($quarter->isset) {
+    $a = (object) [
+        'label' => $quarter->label !== '' ? s($quarter->label) : get_string('quarter_nolabel', 'local_aiproofreaderreport'),
+        'from' => userdate(strtotime($quarter->datefrom . ' 00:00:00'), $dateformat),
+        'to' => userdate(strtotime($quarter->dateto . ' 23:59:59'), $dateformat),
+        'target' => $quarter->target,
+    ];
+    $key = $quarter->target > 0 ? 'quarter_current_goal' : 'quarter_current';
+    echo html_writer::div(get_string($key, 'local_aiproofreaderreport', $a), 'aiproofreaderreport-filterhint mb-3');
+} else if ($canmanagequarter) {
+    echo html_writer::div(get_string('quarter_none', 'local_aiproofreaderreport'), 'aiproofreaderreport-filterhint mb-3');
+}

@@ -2,6 +2,31 @@
 
 All notable changes to `local_aiproofreaderreport` are documented here.
 
+## v0.8.0 - 2026-10-10
+
+Requires mod_aiproofreader v0.8.0 (2026101000) or later.
+
+### Added
+- **My AI Proofreader grant numbers** page for grant teachers (`mynumbers.php`), linked from the Reports section of their own profile page (new `lib.php`, `local_aiproofreaderreport_myprofile_navigation()`). Shows the saved quarter's name and dates, the teacher's totals (the same numbers as the Reimbursement tab and their notification email, with goal and outlook when a goal is saved) and their per-activity breakdown. Only roster teachers can open it, and only for themselves; report viewers can preview any roster teacher's page.
+- **Save quarter dates** and **Apply quarter dates** buttons on the filter bar. Saving (new `savequarter.php`, `classes/form/quarter_form.php`) stores a quarter name, the date range and an optional graded goal without sending anything; Apply puts the saved dates back into the filters. The saved quarter is shown under the filter bar. Sending notifications now also saves its dates (and goal, if entered), and the Notify goal box starts from the saved goal.
+- **Teacher-finalized** column on the Overview and Reimbursement tabs and the teacher page, for drafts graded as final with mod_aiproofreader's new "Finalize grade". They also count in Final submissions. New `sub_teacherfinalized` field in the Anonymized Export and the Data Dictionary.
+
+### Fixed (GitHub issues)
+- Anonymized Export with a contacts field selected failed on PostgreSQL when any user had an empty or non-numeric ID number, because the join cast `user.idnumber` to an integer. It now compares the two as text (`sql_cast_to_char('c.StudentNumber')`). The expected contacts table columns are now documented in the README.
+- The HS and MS management course settings defaulted to course ids 53 and 54, which could point at unrelated courses on another site and silently report the wrong students. They now default to blank, and every tab shows a setup notice with a link to the settings until at least one is chosen. Removed the reference to another plugin's convention from the README.
+- The privacy provider now declares the opt-out roster (`local_aiproofreaderreport_optout`: student number, time added, uploader) alongside the grant roster: user lookup by ID number, export, and deletion (a deleted user's opt-out row is removed, and they are blanked out as uploader). README updated to say the plugin stores these two rosters.
+
+## v0.7.3 - 2026-10-05
+
+### Added
+- Anonymized Export: **Deselect all** button next to "Privacy defaults".
+- Anonymized Export: **Save export items** button next to "Download CSV". Saves the checked fields as a per-user preference (`local_aiproofreaderreport_exportfields`), so the same fields are checked each time you come back; a line above the buttons says when a saved selection is in use. With nothing saved, the page still starts from privacy defaults. New page `save_exportfields.php`. Declared in the privacy provider (user preference export).
+- Anonymized Export: two new fields, **Draft submission text (original - NOT de-identified)** and **Final submission text (original - NOT de-identified)**, sourced from the raw `initialtext` / `finaltext` columns. For internal use only - re-running the AI to test changes and comparing against the de-identified versions. They are in the Personally identifying column (off by default, cleared by "Privacy defaults") and land in the CSV right after their de-identified twins for side-by-side comparison. Also listed in the Data Dictionary.
+
+### Changed
+- Anonymized Export: the opt-out roster import moved from the top button row to its own "Opt-out roster" section at the bottom of the tab.
+- Anonymized Export: the export form now posts (with a sesskey) instead of putting the field list in the URL; `export.php` checks the sesskey for the anonymized export.
+
 ## v0.7.2 - 2026-10-05
 
 ### Added

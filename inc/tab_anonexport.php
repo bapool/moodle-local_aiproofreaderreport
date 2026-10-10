@@ -39,6 +39,9 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
     $catalog = export_field_catalog::get_catalog();
     $privacydefaultkeys = export_field_catalog::get_privacy_default_deselected_keys();
 
+    // A saved selection (Save export items) wins over the privacy defaults.
+    $savedkeys = export_field_catalog::get_saved_keys();
+
     $bycategory = [
         export_field_catalog::CATEGORY_PII => [],
         export_field_catalog::CATEGORY_TAG => [],
@@ -48,52 +51,51 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
         $bycategory[$field['category']][$key] = $field;
     }
 
-    $exporturl = new moodle_url('/local/aiproofreaderreport/export.php', ['type' => 'anonexport']);
+    $exporturl = new moodle_url('/local/aiproofreaderreport/export.php');
+    $saveurl = new moodle_url('/local/aiproofreaderreport/save_exportfields.php');
     $optoutimporturl = new moodle_url('/local/aiproofreaderreport/optout_import.php');
     $optoutcount = \local_aiproofreaderreport\report_manager::get_optout_roster_count();
 
-    // Top button row: Privacy defaults (client-side, acts on the export
-    // form below) and the opt-out roster import (its own small form - a
-    // <form> can't nest inside the export form, so both live here, outside
-    // it, laid out side by side).
-    echo html_writer::start_div('aiproofreaderreport-topbuttonrow');
+    if ($savedkeys !== null) {
+        echo html_writer::tag(
+            'p',
+            get_string('anonexport_usingsaved', 'local_aiproofreaderreport', count($savedkeys)),
+            ['class' => 'text-muted']
+        );
+    }
 
+    // POST so the field list stays out of the URL; the same form either
+    // downloads the CSV (export.php) or saves the selection
+    // (save_exportfields.php, via the Save button's formaction).
+    echo html_writer::start_tag('form', ['method' => 'post', 'action' => $exporturl->out(false)]);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'type', 'value' => 'anonexport']);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+
+    // Top button row, inside the form: the two selection helpers
+    // (client-side, type="button" so they never submit), then Download CSV
+    // and Save export items (submit buttons).
+    echo html_writer::start_div('aiproofreaderreport-topbuttonrow');
     echo html_writer::tag(
         'button',
         get_string('anonexport_privacybutton', 'local_aiproofreaderreport'),
         ['type' => 'button', 'id' => 'aiproofreaderreport-privacybutton', 'class' => 'btn btn-secondary']
     );
-
-    echo html_writer::start_tag('form', [
-        'method' => 'post',
-        'action' => $optoutimporturl->out(false),
-        'enctype' => 'multipart/form-data',
-        'class' => 'aiproofreaderreport-optoutform',
-    ]);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
-    echo html_writer::empty_tag('input', [
-        'type' => 'file',
-        'name' => 'optoutfile',
-        'accept' => '.csv',
-        'required' => 'required',
-    ]);
     echo html_writer::tag(
         'button',
-        get_string('optout_importbutton', 'local_aiproofreaderreport'),
-        ['type' => 'submit', 'class' => 'btn btn-secondary']
+        get_string('anonexport_deselectallbutton', 'local_aiproofreaderreport'),
+        ['type' => 'button', 'id' => 'aiproofreaderreport-deselectallbutton', 'class' => 'btn btn-secondary']
     );
-    echo html_writer::end_tag('form');
-
     echo html_writer::tag(
-        'span',
-        get_string('optout_rostercount', 'local_aiproofreaderreport', $optoutcount),
-        ['class' => 'aiproofreaderreport-optoutcount']
+        'button',
+        get_string('anonexport_downloadbutton', 'local_aiproofreaderreport'),
+        ['type' => 'submit', 'class' => 'btn btn-primary']
     );
-
+    echo html_writer::tag(
+        'button',
+        get_string('anonexport_savebutton', 'local_aiproofreaderreport'),
+        ['type' => 'submit', 'formaction' => $saveurl->out(false), 'class' => 'btn btn-secondary']
+    );
     echo html_writer::end_div();
-
-    echo html_writer::start_tag('form', ['method' => 'get', 'action' => $exporturl->out_omit_querystring()]);
-    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'type', 'value' => 'anonexport']);
 
     echo html_writer::start_div('aiproofreaderreport-exportfieldcolumns');
 
@@ -103,12 +105,16 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
         export_field_catalog::CATEGORY_STRUCTURAL => 'anonexport_columnheading_structural',
     ];
 
-    $renderfieldrow = function ($key, $label, $category) use ($privacydefaultkeys) {
+    $renderfieldrow = function ($key, $label, $category) use ($privacydefaultkeys, $savedkeys) {
         $checkboxclass = 'aiproofreaderreport-exportfield-checkbox';
         if ($category === export_field_catalog::CATEGORY_PII) {
             $checkboxclass .= ' aiproofreaderreport-exportfield-pii';
         }
-        $checked = !in_array($key, $privacydefaultkeys, true);
+        if ($savedkeys !== null) {
+            $checked = in_array($key, $savedkeys, true);
+        } else {
+            $checked = !in_array($key, $privacydefaultkeys, true);
+        }
         $attributes = [
             'type' => 'checkbox',
             'name' => 'fields[]',
@@ -160,23 +166,52 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
 
     echo html_writer::end_div();
 
-    echo html_writer::start_div('aiproofreaderreport-exportfieldbuttons');
+    echo html_writer::end_tag('form');
+
+    // Opt-out roster import, at the bottom and out of the way since it is
+    // only needed when the opt-out list changes. Its own form - a <form>
+    // can't nest inside the export form above.
+    echo html_writer::empty_tag('hr');
+    echo html_writer::tag('h5', get_string('optout_heading', 'local_aiproofreaderreport'));
+    echo html_writer::start_div('aiproofreaderreport-topbuttonrow');
+    echo html_writer::start_tag('form', [
+        'method' => 'post',
+        'action' => $optoutimporturl->out(false),
+        'enctype' => 'multipart/form-data',
+        'class' => 'aiproofreaderreport-optoutform',
+    ]);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+    echo html_writer::empty_tag('input', [
+        'type' => 'file',
+        'name' => 'optoutfile',
+        'accept' => '.csv',
+        'required' => 'required',
+    ]);
     echo html_writer::tag(
         'button',
-        get_string('anonexport_downloadbutton', 'local_aiproofreaderreport'),
-        ['type' => 'submit', 'class' => 'btn btn-primary']
+        get_string('optout_importbutton', 'local_aiproofreaderreport'),
+        ['type' => 'submit', 'class' => 'btn btn-secondary']
+    );
+    echo html_writer::end_tag('form');
+    echo html_writer::tag(
+        'span',
+        get_string('optout_rostercount', 'local_aiproofreaderreport', $optoutcount),
+        ['class' => 'aiproofreaderreport-optoutcount']
     );
     echo html_writer::end_div();
 
-    echo html_writer::end_tag('form');
-
-    // Small inline script for the Privacy-defaults button: unchecks every
-    // checkbox tagged aiproofreaderreport-exportfield-pii, nothing else.
-    // A one-off convenience toggle like this doesn't warrant a full AMD
-    // module - it does one small thing on one page.
+    // Small inline script for the two selection buttons. Privacy defaults
+    // unchecks every checkbox tagged aiproofreaderreport-exportfield-pii;
+    // Deselect all unchecks every field. One-off conveniences like these
+    // don't warrant a full AMD module - they do one small thing on one page.
     echo html_writer::script("
         document.getElementById('aiproofreaderreport-privacybutton').addEventListener('click', function() {
             document.querySelectorAll('.aiproofreaderreport-exportfield-pii').forEach(function(box) {
+                box.checked = false;
+            });
+        });
+        document.getElementById('aiproofreaderreport-deselectallbutton').addEventListener('click', function() {
+            document.querySelectorAll('.aiproofreaderreport-exportfield-checkbox').forEach(function(box) {
                 box.checked = false;
             });
         });
