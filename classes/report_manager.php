@@ -447,9 +447,18 @@ class report_manager {
     }
 
     /**
-     * Reimbursement tab: count of graded submissions per teacher within
-     * the selected date range (defaults to no bound if not provided),
-     * sorted by teacher last name, first name.
+     * Reimbursement tab: "Final & graded" count per teacher - submissions
+     * that reached a final version (made by the student, or by the teacher
+     * with "Finalize grade") and were then graded, i.e. status "graded".
+     * A grade entered early with "Grade now" on unfinished work does not
+     * count until the work is finalized and graded.
+     *
+     * Counted exactly like the Overview tab's per-activity "Final & graded"
+     * column: every AI Proofreader activity in the courses where the
+     * teacher is an editing teacher, with the date range applied to when
+     * the student started the submission (s.timecreated). So a teacher's
+     * total always equals the sum of their activity rows, and every other
+     * column on the Reimbursement tab uses the same basis.
      *
      * @param array $filters
      * @return array indexed rows: teacherid, teachername, lastname, firstname, gradedcount
@@ -457,20 +466,29 @@ class report_manager {
     public static function get_reimbursement_rows(array $filters): array {
         global $DB;
 
-        [$where, $params] = self::build_filter_sql($filters, 'g.timemodified');
+        $roleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
+        if (!$roleid) {
+            return [];
+        }
+
+        [$where, $params] = self::build_filter_sql($filters, 's.timecreated');
+        $params['rctxcourse'] = CONTEXT_COURSE;
+        $params['rteacherroleid'] = $roleid;
+        $params['rgradedstatus'] = 'graded';
 
         $teacherclause = '';
         if (!empty($filters['teacherid'])) {
-            $teacherclause = 'AND g.graderid = :fteacherid';
+            $teacherclause = 'AND ra.userid = :fteacherid';
             $params['fteacherid'] = $filters['teacherid'];
         }
 
-        $sql = "SELECT g.graderid, COUNT(*) AS gradedcount
-                  FROM {aiproofreader_grade} g
-                  JOIN {aiproofreader_submission} s ON s.id = g.submissionid
-                  JOIN {aiproofreader} ap ON ap.id = s.aiproofreaderid
-                 WHERE $where $teacherclause
-              GROUP BY g.graderid";
+        $sql = "SELECT ra.userid AS graderid, COUNT(DISTINCT s.id) AS gradedcount
+                  FROM {aiproofreader} ap
+                  JOIN {aiproofreader_submission} s ON s.aiproofreaderid = ap.id
+                  JOIN {context} ctx ON ctx.instanceid = ap.course AND ctx.contextlevel = :rctxcourse
+                  JOIN {role_assignments} ra ON ra.contextid = ctx.id AND ra.roleid = :rteacherroleid
+                 WHERE $where AND s.status = :rgradedstatus $teacherclause
+              GROUP BY ra.userid";
         $records = $DB->get_records_sql($sql, $params);
         if (empty($records)) {
             return [];
@@ -940,7 +958,7 @@ class report_manager {
             ['aiproofreader_teachersurvey', 'q6aiaccuracy', '1-5: was AI feedback accurate for this assignment.'],
             ['aiproofreader_grade', 'grade', 'Points awarded by the teacher.'],
             ['aiproofreader_grade', 'graderid', 'Teacher user ID who graded the submission.'],
-            ['aiproofreader_grade', 'timemodified', 'Unix timestamp the grade was last saved (used for reimbursement counts).'],
+            ['aiproofreader_grade', 'timemodified', 'Unix timestamp the grade was last saved.'],
         ];
     }
 

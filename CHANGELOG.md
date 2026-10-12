@@ -2,6 +2,16 @@
 
 All notable changes to `local_aiproofreaderreport` are documented here.
 
+## v0.8.1 - 2026-10-12
+
+### Fixed
+- The graded count on the Reimbursement tab, in the notification email and on the My AI Proofreader grant numbers totals row didn't match the per-activity Graded column, and could be higher than Final submissions. It counted every grade a teacher saved, including early "Grade now" grades on students who never finished (often a zero to push them to finish), and used a different date basis (when the grade was saved) and attribution (who saved the grade). Teachers could appear to meet the grant goal without the work being done.
+- Now one definition is used everywhere: **Final & graded** - submissions that reached a final version (made by the student, or by the teacher with "Finalize grade") and were then graded (status `graded`), in the teacher's courses, for submissions started within the date range. This is exactly what the activity table counts, so each teacher's total equals the sum of their activity rows. `report_manager::get_reimbursement_rows()` rewritten; goal outlook and notifications follow automatically.
+
+### Changed
+- "Graded count" / "Graded" columns are now labelled **Final & graded** on the Reimbursement tab, Overview tab and teacher page. The notification email, goal wording, quarter goal field and page intros say Final & graded, and explain that early Grade now grades don't count until the work is finalized and graded.
+- In a course with two editing teachers, both are now credited with its final & graded submissions on the Reimbursement tab (as the Overview tab already did), rather than only the teacher who saved each grade.
+
 ## v0.8.0 - 2026-10-10
 
 Requires mod_aiproofreader v0.8.0 (2026101000) or later.
