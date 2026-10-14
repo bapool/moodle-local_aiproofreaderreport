@@ -19,7 +19,7 @@ An admin/manager-facing analytics report for **mod_aiproofreader** (AI Proofread
 > - **Overview** — which teachers are using AI Proofreader, in which courses, and enrolled/submitted/finished/graded counts per activity.
 > - **Student Survey** and **Teacher Survey** — average score and response count per survey question.
 > - **Reimbursement** — count of final & graded submissions per teacher within a chosen date range, for stipend/reimbursement purposes.
-> - **Data Dictionary** — a downloadable CSV reference of every field the report reads.
+> - **Data Dictionary** — two downloadable CSV references: the Data Export dictionary (a codebook for the public dataset) and the database dictionary (every field the report reads).
 > - **Anonymized Export** — de-identified student data export for research or third-party sharing, with an opt-out roster import and a field picker that defaults to excluding personally identifying columns.
 >
 > Grant teachers can check their own numbers for the current quarter from a link on their Moodle profile page.
@@ -45,8 +45,8 @@ Accessible under **Site administration → Reports → AI Proofreader Report**.
   **Quarter dates.** "Save quarter dates" on the filter bar saves a quarter name, the dates in the date boxes and an optional graded goal, without sending anything. "Apply quarter dates" puts the saved dates back into the filters. Sending notifications also saves the dates (and goal, if entered) it used, keeping the name. The saved quarter is what grant teachers see on their own page (below). Both the save and the notify buttons need `local/aiproofreaderreport:notify`.
 
   **Teacher-finalized.** The Overview and Reimbursement tabs show a "Teacher-finalized" column: drafts a teacher graded as final with AI Proofreader's "Finalize grade" (end of a grading period, the student never submitted a final version). They are also counted in Final submissions and, once graded, in Graded.
-- **Data Dictionary** — downloadable CSV reference of every field this report reads.
-- **Anonymized Export** — de-identified student data export as a CSV. Tick the fields you want; "Privacy defaults" clears the personally identifying ones and "Deselect all" clears everything. "Save export items" remembers your ticked fields (per user) so they are ticked again next time. The Personally identifying column also offers the original, NOT de-identified draft and final text: these are for internal testing only (re-running the AI after prompt changes, and checking the redaction against the original) and must never be shared; they sit next to the de-identified text in the CSV for comparison. The opt-out roster import (students to leave out of every export) is at the bottom of the tab.
+- **Data Dictionary** — two downloadable CSVs. The **Data Export dictionary** describes each column the Data Export button selects: the heading exactly as it appears in the CSV, its type, its allowed values and a plain description. It is the codebook that goes alongside the public dataset. The **Database dictionary** lists every AI Proofreader database field the report reads, for internal use.
+- **Anonymized Export** — de-identified student data export as a CSV. Tick the fields you want; "Privacy defaults" clears the personally identifying ones, "Deselect all" clears everything, and "Data Export" ticks exactly the fields for the public research dataset (see below). "Save export items" remembers your ticked fields (per user) so they are ticked again next time. The Personally identifying column also offers the original, NOT de-identified draft and final text: these are for internal testing only (re-running the AI after prompt changes, and checking the redaction against the original) and must never be shared; they sit next to the de-identified text in the CSV for comparison. The opt-out roster import (students to leave out of every export) is at the bottom of the tab.
 
 ### My AI Proofreader grant numbers (teachers)
 
@@ -101,14 +101,34 @@ If the Moodle database has a table named `contacts` (a district student informat
 ## Anonymized export: how it works
 
 - The anonymous student ID is computed by mod_aiproofreader (`aiproofreader_get_anon_id()`).
-- "Draft/Final submission text (de-identified)" come from `initialtextredacted` / `finaltextredacted`, which mod_aiproofreader's nightly PII redaction task fills in. They are blank until that task has processed the submission.
-- "Draft/Final submission text (original - NOT de-identified)" are the raw `initialtext` / `finaltext`. Internal testing only, never for release.
+- "Draft/Final submission text (de-identified)" come from `initialtextredacted` / `finaltextredacted`, and the two AI feedback fields and the AI feedback-followed analysis (de-identified) from `feedbackgrammarredacted` / `feedbackassignmentredacted` / `aicomparisonredacted`. mod_aiproofreader's nightly PII redaction task fills these in (v0.8.3 or later for the feedback and comparison); they are blank until it has processed the submission.
+- The "(original - NOT de-identified)" fields are the raw text, feedback and comparison. Internal testing only, never for release.
 - Students on the opt-out roster are left out of every export.
 - Saved export items are stored per user in the `local_aiproofreaderreport_exportfields` user preference.
 
+## Data Export (public research dataset)
+
+The **Data Export** button ticks only the fields meant for the grant's public dataset on Hugging Face, and clears everything else. The list (`export_field_catalog::get_dataexport_keys()`) is modelled on comparable public student-writing datasets - PERSUADE 2.0 (essays, human scores, demographics) and ArgRewrite V.2 (draft, feedback, revision, participant surveys) - no more, no less:
+
+- Anonymous student ID, school year, grade level
+- Lunch (economic status), IEP, 504
+- Assignment instructions, target grade level (Lexile setting), maximum points
+- De-identified draft text, AI feedback (both sections), final text and AI comparison; teacher-finalized flag, feedback-followed score, feedback and comparison AI model
+- Teacher's grade (points)
+- Student survey ratings (q1-q5) and teacher survey ratings (q1-q6)
+
+Left out on purpose: names, emails, links, student number, school and district IDs, the teacher's extra AI instructions, free-text survey answers, instructor comments, grader, all timestamps, submission type and status, gender, ethnicity and gifted.
+
+Download the **Data Export dictionary** from the Data Dictionary tab and post it with the data: it describes exactly these columns, in the same order and with the same headings, because it is built from the same field list as the button. Two parts of it are read live when you download it, so it always matches the site:
+
+- **District codes** (school year, grade level, lunch, IEP, 504) are listed from the values actually in the `contacts` table, since each district's student information system has its own codes.
+- **Survey questions** are quoted with the wording the site actually uses (set in this plugin's survey settings), not the default wording.
+
+Before posting: make sure the nightly redaction has run on every submission (blank de-identified text means not yet processed), and in any grade level with only a few IEP/504 students, blank or merge those columns so no student can be singled out. Read the assignment instructions too: they are written by teachers and are not de-identified, so a teacher who signed their instructions would be named.
+
 ## Database dictionary (tables this plugin reads)
 
-All tables below belong to `mod_aiproofreader`. This plugin's own two tables are small admin rosters, not report data:
+The `aiproofreader...` tables below belong to `mod_aiproofreader`; `user` is Moodle's and `contacts` is the optional district table. This plugin's own two tables are small admin rosters, not report data:
 
 - `local_aiproofreaderreport_optout` - district student numbers (matched to `user.idnumber`) whose parents opted out; excluded from the anonymized export. Each row also records when it was uploaded and by whom. Personal data, declared in the privacy provider (export and deletion).
 - `local_aiproofreaderreport_grantteacher` - Moodle user ids of grant program teachers; decides who gets reimbursement notifications and who can open the My AI Proofreader grant numbers page. Declared in the privacy provider.
@@ -121,6 +141,8 @@ The saved quarter is stored as plugin settings (`quarterlabel`, `quarterdatefrom
 | id | Unique ID of the activity instance |
 | course | Course ID the activity belongs to |
 | name | Assignment name |
+| intro | Assignment instructions written by the teacher (HTML). Also the main instructions given to the AI |
+| aiinstructions | Extra teacher-only instructions for the AI (HTML), not shown to students |
 | gradelevel | Target grade level (3-12) for AI feedback tone/lexile |
 | grade | Maximum points for the activity |
 
@@ -131,12 +153,30 @@ The saved quarter is stored as plugin settings (`quarterlabel`, `quarterdatefrom
 | aiproofreaderid | Links to the aiproofreader activity instance |
 | userid | Student user ID |
 | status | draft, feedbackpending, feedbackready, finalsubmitted, graded |
+| initialsubmissiontype | How the draft was submitted: text, file (Word) or gdrive (Google Doc) |
+| initialtext | Original draft text as the student submitted it (NOT de-identified) |
+| initialtextredacted | AI de-identified copy of the draft text, for release |
 | initialtimesubmitted | Unix timestamp of the draft submission |
+| initialgdrivelink | Google Drive link pasted for the draft, if that submission type was used |
+| finalsubmissiontype | How the final was submitted: text, file (Word) or gdrive (Google Doc) |
+| finaltext | Original final text as the student submitted it (NOT de-identified) |
+| finaltextredacted | AI de-identified copy of the final text, for release |
 | finaltimesubmitted | Unix timestamp of the final submission |
-| feedbackaimodel | Label identifying the AI model/provider that generated the feedback - see "AI model tracking" below |
-| comparisonaimodel | Label identifying the AI model/provider that generated the comparison - see "AI model tracking" below |
+| finalgdrivelink | Google Drive link pasted for the final, if that submission type was used |
+| feedbackgrammar | AI Grammar and Spelling feedback (NOT de-identified) |
+| feedbackgrammarredacted | AI de-identified copy of the grammar feedback, for release |
+| feedbackassignment | AI Assignment Specifics feedback (NOT de-identified) |
+| feedbackassignmentredacted | AI de-identified copy of the assignment feedback, for release |
+| aicomparison | AI analysis of whether feedback was followed (NOT de-identified) |
+| aicomparisonredacted | AI de-identified copy of the AI comparison, for release |
+| feedbacktimecreated | Unix timestamp the AI feedback was generated |
+| aicomparisontimecreated | Unix timestamp the AI comparison was generated |
+| timecreated | Unix timestamp the submission record was created |
+| timemodified | Unix timestamp the submission record was last changed |
 | aifollowedscore | 1-5 AI-generated score of how well feedback was followed |
-| teacherfinalized | 1 if the teacher closed the assignment with "Finalize grade" (the final version is a copy of the draft), 0 if the student made their own final submission |
+| teacherfinalized | 1 if the teacher closed the assignment with "Finalize grade" at the end of the grading period, so the final version is a copy of the draft; 0 if the student made their own final submission |
+| feedbackaimodel | Label identifying the AI model/provider that generated the feedback (site-configured, plus provider-reported detail when available) |
+| comparisonaimodel | Label identifying the AI model/provider that generated the comparison (site-configured, plus provider-reported detail when available) |
 
 ### `aiproofreader_studentsurvey`
 Any field below may be `null` if that question has been individually disabled in survey settings, or if the whole survey system is off.
@@ -148,6 +188,8 @@ Any field below may be `null` if that question has been individually disabled in
 | q3usedfeedback | 1-5: used feedback to improve submission |
 | q4categoryhelped | grammar, assignment, or both |
 | q5confidence | 1-5: confidence in final vs. draft |
+| freetext | Optional free-text answer: what the AI feedback missed. May contain names |
+| timecreated | Unix timestamp the student survey was submitted |
 
 ### `aiproofreader_teachersurvey`
 Any field below may be `null` if that question has been individually disabled in survey settings, or if the whole survey system is off.
@@ -160,13 +202,47 @@ Any field below may be `null` if that question has been individually disabled in
 | q4feedbackfollowed | 1-5: was the feedback followed |
 | q5aiscaffold | 1-5: did the AI help scaffold the student |
 | q6aiaccuracy | 1-5: was AI feedback accurate for this assignment |
+| freetext | Optional free-text concerns from the teacher. May contain names |
+| timecreated | Unix timestamp the teacher survey was submitted |
 
 ### `aiproofreader_grade`
 | Field | Description |
 |---|---|
 | grade | Points awarded by the teacher |
 | graderid | Teacher user ID who graded the submission |
-| timemodified | Unix timestamp the grade was last saved (used for reimbursement counts) |
+| instructorcomments | Teacher written comments to the student. May contain names |
+| timemodified | Unix timestamp the grade was last saved |
+
+### `user`
+Moodle's own user table - only these two fields are read.
+
+| Field | Description |
+|---|---|
+| idnumber | District student ID (SSID). Source of the anonymous student ID; never exported for release |
+| email | Student login email |
+
+### `contacts`
+Optional district student information table - see "Optional district contacts table" above. Only these columns are read.
+
+| Field | Description |
+|---|---|
+| StudentNumber | Optional district SIS table. District student ID (SSID). Matched to user.idnumber |
+| SchoolYear | Optional district SIS table. School year of the student record |
+| SchoolCode | Optional district SIS table. School code |
+| DistrictID | Optional district SIS table. District ID |
+| SchoolID | Optional district SIS table. School ID |
+| StudentStatus | Optional district SIS table. Enrollment status |
+| LastName | Optional district SIS table. Student last name |
+| FirstName | Optional district SIS table. Student first name |
+| City | Optional district SIS table. City of residence |
+| State | Optional district SIS table. State of residence |
+| GradeLevelCode | Optional district SIS table. Student grade level |
+| IEP | Optional district SIS table. Individualized Education Program (special education) status |
+| Status504 | Optional district SIS table. Section 504 plan status |
+| StudentFreeLunchStatus | Optional district SIS table. Free/reduced lunch status (economic disadvantage) |
+| Gifted | Optional district SIS table. Gifted identification |
+| Gender | Optional district SIS table. Gender |
+| StudentEthnicity | Optional district SIS table. Ethnicity |
 
 ## Copyright
 

@@ -47,6 +47,26 @@ if ($type === 'datadictionary') {
     exit;
 }
 
+if ($type === 'dataexportdictionary') {
+    require_capability('local/aiproofreaderreport:view', $context);
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="aiproofreader_data_export_dictionary.csv"');
+
+    $handle = fopen('php://output', 'w');
+    fputcsv($handle, [
+        get_string('dictionary_col_column', 'local_aiproofreaderreport'),
+        get_string('dictionary_col_type', 'local_aiproofreaderreport'),
+        get_string('dictionary_col_values', 'local_aiproofreaderreport'),
+        get_string('datadictionary_col_description', 'local_aiproofreaderreport'),
+    ]);
+    foreach (export_field_catalog::get_dataexport_dictionary() as $entry) {
+        fputcsv($handle, $entry);
+    }
+    fclose($handle);
+    exit;
+}
+
 if ($type === 'anonexport') {
     require_capability('local/aiproofreaderreport:export', $context);
     // The export form posts with a sesskey (since v0.7.3), so the download

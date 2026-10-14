@@ -24,8 +24,35 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+use local_aiproofreaderreport\export_field_catalog;
 use local_aiproofreaderreport\report_manager;
 
+// Data Export dictionary first: it's the one that goes out with the public
+// dataset, describing exactly the columns the "Data Export" button selects.
+echo html_writer::tag('h4', get_string('dataexportdictionary_heading', 'local_aiproofreaderreport'));
+echo html_writer::tag('p', get_string('dataexportdictionary_intro', 'local_aiproofreaderreport'));
+
+echo html_writer::link(
+    new moodle_url('/local/aiproofreaderreport/export.php', ['type' => 'dataexportdictionary']),
+    get_string('dataexportdictionary_download', 'local_aiproofreaderreport'),
+    ['class' => 'btn btn-primary']
+);
+
+$table = new html_table();
+$table->head = [
+    get_string('dictionary_col_column', 'local_aiproofreaderreport'),
+    get_string('dictionary_col_type', 'local_aiproofreaderreport'),
+    get_string('dictionary_col_values', 'local_aiproofreaderreport'),
+    get_string('datadictionary_col_description', 'local_aiproofreaderreport'),
+];
+$table->attributes['class'] = 'generaltable aiproofreaderreport-table';
+foreach (export_field_catalog::get_dataexport_dictionary() as $entry) {
+    $table->data[] = array_map('s', $entry);
+}
+echo html_writer::tag('div', html_writer::table($table), ['class' => 'mt-3 mb-4']);
+
+// Database dictionary: every AI Proofreader database field, for internal use.
+echo html_writer::tag('h4', get_string('datadictionary_heading', 'local_aiproofreaderreport'));
 echo html_writer::tag('p', get_string('datadictionary_intro', 'local_aiproofreaderreport'));
 
 echo html_writer::link(

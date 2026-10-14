@@ -87,6 +87,16 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
     );
     echo html_writer::tag(
         'button',
+        get_string('anonexport_dataexportbutton', 'local_aiproofreaderreport'),
+        [
+            'type' => 'button',
+            'id' => 'aiproofreaderreport-dataexportbutton',
+            'class' => 'btn btn-secondary',
+            'title' => get_string('anonexport_dataexportbutton_help', 'local_aiproofreaderreport'),
+        ]
+    );
+    echo html_writer::tag(
+        'button',
         get_string('anonexport_downloadbutton', 'local_aiproofreaderreport'),
         ['type' => 'submit', 'class' => 'btn btn-primary']
     );
@@ -105,10 +115,15 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
         export_field_catalog::CATEGORY_STRUCTURAL => 'anonexport_columnheading_structural',
     ];
 
-    $renderfieldrow = function ($key, $label, $category) use ($privacydefaultkeys, $savedkeys) {
+    $dataexportkeys = export_field_catalog::get_dataexport_keys();
+
+    $renderfieldrow = function ($key, $label, $category) use ($privacydefaultkeys, $savedkeys, $dataexportkeys) {
         $checkboxclass = 'aiproofreaderreport-exportfield-checkbox';
         if ($category === export_field_catalog::CATEGORY_PII) {
             $checkboxclass .= ' aiproofreaderreport-exportfield-pii';
+        }
+        if (in_array($key, $dataexportkeys, true)) {
+            $checkboxclass .= ' aiproofreaderreport-exportfield-dataexport';
         }
         if ($savedkeys !== null) {
             $checked = in_array($key, $savedkeys, true);
@@ -200,10 +215,12 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
     );
     echo html_writer::end_div();
 
-    // Small inline script for the two selection buttons. Privacy defaults
+    // Small inline script for the three selection buttons. Privacy defaults
     // unchecks every checkbox tagged aiproofreaderreport-exportfield-pii;
-    // Deselect all unchecks every field. One-off conveniences like these
-    // don't warrant a full AMD module - they do one small thing on one page.
+    // Deselect all unchecks every field; Data Export checks exactly the
+    // public-dataset fields (tagged aiproofreaderreport-exportfield-dataexport)
+    // and unchecks everything else. One-off conveniences like these don't
+    // warrant a full AMD module - they do one small thing on one page.
     echo html_writer::script("
         document.getElementById('aiproofreaderreport-privacybutton').addEventListener('click', function() {
             document.querySelectorAll('.aiproofreaderreport-exportfield-pii').forEach(function(box) {
@@ -213,6 +230,11 @@ if (!has_capability('local/aiproofreaderreport:export', context_system::instance
         document.getElementById('aiproofreaderreport-deselectallbutton').addEventListener('click', function() {
             document.querySelectorAll('.aiproofreaderreport-exportfield-checkbox').forEach(function(box) {
                 box.checked = false;
+            });
+        });
+        document.getElementById('aiproofreaderreport-dataexportbutton').addEventListener('click', function() {
+            document.querySelectorAll('.aiproofreaderreport-exportfield-checkbox').forEach(function(box) {
+                box.checked = box.classList.contains('aiproofreaderreport-exportfield-dataexport');
             });
         });
     ");

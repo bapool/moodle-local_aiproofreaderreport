@@ -25,18 +25,18 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_aiproofreaderreport';
-$plugin->version   = 2026101200;      // YYYYMMDDXX.
+$plugin->version   = 2026101400;      // YYYYMMDDXX.
 $plugin->requires  = 2024042200;      // Moodle 4.5.
 $plugin->maturity  = MATURITY_BETA;
-$plugin->release   = 'v0.8.1';
+$plugin->release   = 'v0.8.4';
 
 // This plugin is the admin control surface for mod_aiproofreader (survey
 // on/off, question wording, data collection settings) and reports on its
 // data - it has nothing to do without it, so refuse to install/upgrade
 // unless mod_aiproofreader is already present at a compatible version.
-// Bumped to 2026091001 since the anonymized export's draft/final submission
-// text columns now source from initialtextredacted/finaltextredacted,
-// introduced in that mod version.
+// Requires 2026101300 (v0.8.3): the anonymized export's AI feedback and AI
+// comparison columns source from feedbackgrammarredacted,
+// feedbackassignmentredacted and aicomparisonredacted, added in that version.
 $plugin->dependencies = [
-    'mod_aiproofreader' => 2026101000,
+    'mod_aiproofreader' => 2026101300,
 ];

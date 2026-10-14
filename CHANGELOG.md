@@ -2,6 +2,39 @@
 
 All notable changes to `local_aiproofreaderreport` are documented here.
 
+## v0.8.4 - 2026-10-14
+
+### Added
+- **Data Export dictionary** on the Data Dictionary tab, with a **Download Data Export dictionary (CSV)** button (`export.php?type=dataexportdictionary`). One row per column the Data Export button selects, in the same order and with the same headings as the CSV: Column, Type, Values, Description. It is the codebook to post alongside the public dataset. Built from `export_field_catalog::get_dataexport_keys()`, the same list as the button, so the two can't drift apart (new `get_dataexport_dictionary()`).
+  - District codes (school year, grade level, lunch, IEP, 504) are listed from the distinct values actually in the `contacts` table at download time, since each district has its own codes.
+  - Survey descriptions quote the question wording the site actually uses (`aiproofreader_question_text()` from mod_aiproofreader), so customized wording is shown, not the default.
+  - All text is in language strings (`dictdesc_*`, `dicttype_*`, `dictvalues_*`).
+- The Data Dictionary tab now has two headed sections: Data Export dictionary first, then the Database dictionary.
+
+### Changed
+- **Database dictionary** now covers every field the Anonymized Export can include. Added: the assignment instructions and AI instructions, submission types, Google Drive links, feedback/comparison/record timestamps, instructor comments, the survey free-text answers and times, the two `user` fields read, and the 17 `contacts` columns read. The README's database dictionary is regenerated from the same list, so the two match.
+
+### Fixed
+- The **Teacher-finalized** export field had no language string (missing since v0.8.0), so its checkbox and CSV column heading showed `[[exportfield_sub_teacherfinalized]]`. Added `exportfield_sub_teacherfinalized`: "Teacher-finalized (1 = teacher used the draft as the final)".
+
+## v0.8.3 - 2026-10-13
+
+Requires mod_aiproofreader v0.8.3 (2026101300) or later.
+
+### Changed
+- Anonymized Export: **AI feedback: grammar and spelling**, **AI feedback: assignment specifics** and **AI feedback-followed analysis** now export mod_aiproofreader's de-identified copies (`feedbackgrammarredacted`, `feedbackassignmentredacted`, `aicomparisonredacted`), made by its nightly PII redaction task, and are labelled "(de-identified)". The feedback and comparison often quote the student's own sentences, so the raw versions can contain names.
+- The **Data Export** button now also selects those three de-identified fields.
+
+### Added
+- Three internal-only fields in the Personally identifying column - the original, NOT de-identified grammar feedback, assignment feedback and AI comparison - each next to its de-identified twin in the CSV, for checking the redaction. Off by default and cleared by "Privacy defaults".
+- Data Dictionary lists the raw and de-identified feedback and comparison fields.
+
+## v0.8.2 - 2026-10-13
+
+### Added
+- Anonymized Export: **Data Export** button next to "Deselect all". It ticks exactly the fields for the grant's public research dataset (Hugging Face) and clears all others. The list is `export_field_catalog::get_dataexport_keys()`, modelled on PERSUADE 2.0 and ArgRewrite V.2. Described in the README under "Data Export".
+- Anonymized Export: two new fields under Assignment Submission Specifics - **Target grade level (Lexile setting)** (`aiproofreader.gradelevel`) and **Maximum points** (`aiproofreader.grade`), so the reading-level condition is known and grades can be read as percentages.
+
 ## v0.8.1 - 2026-10-12
 
 ### Fixed
