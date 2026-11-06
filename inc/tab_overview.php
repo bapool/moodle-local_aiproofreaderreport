@@ -49,10 +49,28 @@ if (empty($rows)) {
     $table->attributes['class'] = 'generaltable aiproofreaderreport-table';
 
     foreach ($rows as $row) {
+        // Link the activity name to the activity (new tab) so it can be inspected.
+        $modinfo = get_fast_modinfo($row->courseid);
+        $cm = $modinfo->instances['aiproofreader'][$row->apid] ?? null;
+        $activityname = format_string($row->activityname, true, ['context' => context_course::instance($row->courseid)]);
+        if ($cm) {
+            $activitycell = html_writer::link(
+                new moodle_url('/mod/aiproofreader/view.php', ['id' => $cm->id]),
+                $activityname,
+                [
+                    'target' => '_blank',
+                    'rel' => 'noopener',
+                    'title' => get_string('opensinnewwindow'),
+                ]
+            );
+        } else {
+            $activitycell = $activityname;
+        }
+
         $table->data[] = [
             $row->teachername,
             $row->coursename,
-            $row->activityname,
+            $activitycell,
             $row->gradelevel,
             $row->enrolledcount,
             $row->submittedcount,

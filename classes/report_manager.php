@@ -28,6 +28,9 @@ namespace local_aiproofreaderreport;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report_manager {
+    /** @var int A due/open date is stale if most finals came in more than this long after it (4 weeks). */
+    const STALE_DATE_SECS = 4 * WEEKSECS;
+
     /**
      * Read filters from the current request. Every page/tab shares the
      * same filter bar, so this is the single source of truth for params.
@@ -165,9 +168,122 @@ class report_manager {
     }
 
     /**
+     * IDs of the AI Proofreader activities whose deciding date falls inside
+     * the filter date range.
+     *
+     * The deciding date is, in order:
+     * 1. The activity's due date, if set and trusted.
+     * 2. Its "Allow submissions from" date, if set and trusted.
+     * 3. Otherwise its majority date.
+     *
+     * A date is trusted unless the majority date is more than
+     * STALE_DATE_SECS (4 weeks) after it; finals coming in early never make
+     * a date stale. This lets a teacher who builds an activity in one quarter
+     * but sets it due in the next have it count in the next, while an old or
+     * reused date is ignored.
+     *
+     * The majority date is the time by which more than half of the activity's
+     * in-scope (MS/HS) students had made their own final submission
+     * (finaltimesubmitted): the times are sorted and the one at position
+     * floor(n / 2) is used. Teacher-finalized submissions (teacherfinalized = 1)
+     * are left out, so closing out work after a quarter ends can't move the
+     * activity. If no student final exists yet, draft submission times
+     * (initialtimesubmitted) are used the same way, then record creation
+     * times (timecreated). Worked out in PHP rather than SQL so it runs on
+     * every database Moodle supports.
+     *
+     * @param array $filters
+     * @param int[] $scopeids In-scope student user IDs.
+     * @return int[]
+     */
+    private static function get_activity_ids_started_in_range(array $filters, array $scopeids): array {
+        global $DB;
+        static $cache = [];
+
+        $from = !empty($filters['datefrom']) ? strtotime($filters['datefrom'] . ' 00:00:00') : false;
+        $to = !empty($filters['dateto']) ? strtotime($filters['dateto'] . ' 23:59:59') : false;
+        $cachekey = (int) $from . '-' . (int) $to;
+        if (isset($cache[$cachekey])) {
+            return $cache[$cachekey];
+        }
+
+        [$insql, $inparams] = $DB->get_in_or_equal($scopeids, SQL_PARAMS_NAMED, 'msscope');
+        $recordset = $DB->get_recordset_sql(
+            "SELECT s.id, s.aiproofreaderid, s.timecreated, s.initialtimesubmitted,
+                    s.finaltimesubmitted, s.teacherfinalized
+               FROM {aiproofreader_submission} s
+              WHERE s.userid $insql",
+            $inparams
+        );
+        $finaltimes = [];
+        $drafttimes = [];
+        $createdtimes = [];
+        foreach ($recordset as $record) {
+            $apid = (int) $record->aiproofreaderid;
+            if ((int) $record->finaltimesubmitted > 0 && (int) $record->teacherfinalized !== 1) {
+                $finaltimes[$apid][] = (int) $record->finaltimesubmitted;
+            }
+            if ((int) $record->initialtimesubmitted > 0) {
+                $drafttimes[$apid][] = (int) $record->initialtimesubmitted;
+            }
+            $createdtimes[$apid][] = (int) $record->timecreated;
+        }
+        $recordset->close();
+
+        $activitydates = [];
+        if (!empty($createdtimes)) {
+            $activitydates = $DB->get_records_list(
+                'aiproofreader',
+                'id',
+                array_keys($createdtimes),
+                '',
+                'id, duedate, allowsubmissionsfromdate'
+            );
+        }
+
+        $apids = [];
+        foreach ($createdtimes as $apid => $created) {
+            $times = $finaltimes[$apid] ?? $drafttimes[$apid] ?? $created;
+            sort($times);
+            $majoritydate = $times[intdiv(count($times), 2)];
+
+            // Due date first, then "Allow submissions from", if trusted.
+            $decidingdate = $majoritydate;
+            if (isset($activitydates[$apid])) {
+                $candidates = [
+                    (int) $activitydates[$apid]->duedate,
+                    (int) $activitydates[$apid]->allowsubmissionsfromdate,
+                ];
+                foreach ($candidates as $candidate) {
+                    if ($candidate > 0 && $majoritydate <= $candidate + self::STALE_DATE_SECS) {
+                        $decidingdate = $candidate;
+                        break;
+                    }
+                }
+            }
+
+            if ($from !== false && $decidingdate < $from) {
+                continue;
+            }
+            if ($to !== false && $decidingdate > $to) {
+                continue;
+            }
+            $apids[] = $apid;
+        }
+
+        $cache[$cachekey] = $apids;
+        return $apids;
+    }
+
+    /**
      * Build the shared WHERE clause / params for filters that apply to
      * queries joined against aiproofreader_submission (aliased "s") and
      * aiproofreader (aliased "ap").
+     *
+     * Passing 's.timecreated' applies the deciding-date rule: only
+     * activities whose deciding date (see get_activity_ids_started_in_range())
+     * is in the range are included, and then all of their submissions count.
+     * Any other column is bounded directly by the range.
      *
      * @param array $filters
      * @param string $datefield fully-qualified column to apply date range to, or '' to skip
@@ -207,7 +323,26 @@ class report_manager {
             $params['fgroupid'] = $filters['groupid'];
         }
 
-        if ($datefield !== '') {
+        if ($datefield === 's.timecreated') {
+            // Deciding-date rule: an activity belongs to the period of its due
+            // date (or "Allow submissions from" date), unless that date is
+            // stale, in which case the period in which more than half of its
+            // in-scope students' own final submissions came in (see
+            // get_activity_ids_started_in_range()). If that falls inside the
+            // range, every submission to the activity counts; if not, the
+            // whole activity is left out, so an activity is never split
+            // across two quarters.
+            if (!empty($filters['datefrom']) || !empty($filters['dateto'])) {
+                $apids = self::get_activity_ids_started_in_range($filters, $scopeids);
+                if (empty($apids)) {
+                    $where[] = '1 = 0';
+                } else {
+                    [$apinsql, $apinparams] = $DB->get_in_or_equal($apids, SQL_PARAMS_NAMED, 'fsap');
+                    $where[] = "ap.id $apinsql";
+                    $params = array_merge($params, $apinparams);
+                }
+            }
+        } else if ($datefield !== '') {
             if (!empty($filters['datefrom'])) {
                 $timestamp = strtotime($filters['datefrom'] . ' 00:00:00');
                 if ($timestamp !== false) {
@@ -456,7 +591,7 @@ class report_manager {
      * Counted exactly like the Overview tab's per-activity "Final & graded"
      * column: every AI Proofreader activity in the courses where the
      * teacher is an editing teacher, with the date range applied to when
-     * the student started the submission (s.timecreated). So a teacher's
+     * the activity was first started (see build_filter_sql). So a teacher's
      * total always equals the sum of their activity rows, and every other
      * column on the Reimbursement tab uses the same basis.
      *
@@ -570,8 +705,8 @@ class report_manager {
     /**
      * Per-teacher submission totals across every AI Proofreader activity in
      * the courses where they are an editing teacher (the same attribution the
-     * Overview tab uses), under the current filters. Submission dates are
-     * bounded by the date range like the Overview tab (s.timecreated).
+     * Overview tab uses), under the current filters. Activities are limited
+     * to those first started in the date range, like the Overview tab.
      *
      * Each submission row is one student in one activity, so these are
      * the Overview tab's per-activity numbers added up.
@@ -639,8 +774,8 @@ class report_manager {
      * "Students enrolled" column summed per teacher.
      *
      * Uses the same activity list as the Overview tab (activities with at
-     * least one in-scope submission under the current filters, submission
-     * dates bounded by s.timecreated), so the two tabs always agree.
+     * least one in-scope submission under the current filters, first started
+     * in the date range), so the two tabs always agree.
      *
      * @param array $filters
      * @param int[] $teacherids

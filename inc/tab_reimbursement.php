@@ -151,6 +151,13 @@ if (has_capability('local/aiproofreaderreport:notify', context_system::instance(
             'type' => 'submit', 'value' => get_string('notify_button', 'local_aiproofreaderreport'),
             'class' => 'btn btn-primary',
         ]);
+        // Same filters and goal, opened as a printable page in a new tab.
+        echo html_writer::empty_tag('input', [
+            'type' => 'submit', 'value' => get_string('printsummary_button', 'local_aiproofreaderreport'),
+            'class' => 'btn btn-secondary ml-1',
+            'formaction' => (new moodle_url('/local/aiproofreaderreport/printsummary.php'))->out(false),
+            'formtarget' => '_blank',
+        ]);
         echo html_writer::end_tag('div');
         echo html_writer::end_tag('div');
 

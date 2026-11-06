@@ -2,6 +2,36 @@
 
 All notable changes to `local_aiproofreaderreport` are documented here.
 
+## v0.8.7 - 2026-11-06
+
+### Changed
+- **The activity's due date now decides which quarter it counts in**, when it can be trusted. Order: the due date; if there is none or it is stale, the "Allow submissions from" date; if neither is set or trusted, the majority-final date from v0.8.6.
+  - A date is stale when most students' own final submissions came in more than 4 weeks after it (`report_manager::STALE_DATE_SECS`). Finals coming in early never make a date stale.
+  - Fixes activities a teacher built near the end of one quarter but set due in the next (example: a play script created in Q1, opened 10/19 and due 10/22, was counted in Q1).
+  - The majority-final date still uses only students' own finals; teacher-finalized submissions are left out.
+
+## v0.8.6 - 2026-11-05
+
+### Changed
+- **Which quarter an activity counts in now follows the majority of student final submissions**, not the first student to start. An activity belongs to the period in which more than half of its MS/HS students' own final submissions came in. If that date is inside the range, every submission to the activity counts there; if not, the whole activity is left out.
+  - Teacher-finalized submissions are left out of the majority, so closing out work after a quarter ends can't move an activity into the next quarter. They still count toward the stipend in whichever quarter the activity belongs to.
+  - If no student has made a final submission yet, draft submission dates are used, then submission record creation dates.
+  - Worked out in PHP (new `report_manager::get_activity_ids_started_in_range()`) so it runs on every database Moodle supports.
+  - Applies to Overview, Reimbursement, notifications, the print stipend summary and My AI Proofreader grant numbers. Survey tabs are unchanged.
+
+### Fixed
+- An activity created and tried by a few students at the end of one quarter, but assigned and completed in the next, was counted in the earlier quarter (v0.8.5 used the first student record). Example: a Q2 assignment with a handful of 10/13-10/15 records was reported in Q1.
+- `build_filter_sql()` doc comment had its description after `@param`; moved before it.
+
+## v0.8.5 - 2026-10-21
+
+### Added
+- **Print stipend summary** button on the Reimbursement tab, next to Notify teachers (new `printsummary.php`). Opens a printable page in a new tab for the treasurer: period, quarter name (when the dates match the saved quarter), goal, each teacher's students submitted / final submissions / final & graded, Goal met (Yes/No), totals, and Prepared by / Approved by (Treasurer) signature lines. Same teacher list as Notify teachers. Menus, footer and buttons are hidden by print CSS.
+- Overview tab activity names now link to the activity, opening in a new tab.
+
+### Changed
+- **Date range now uses the activity start date.** An activity counts in the period in which its first MS/HS student started a submission; if that is inside the range, all its submissions count, otherwise the whole activity is left out. Previously each submission was bounded by its own start date, so a Q1 activity with late starters during an extended grading window also showed up in Q2. Applies to Overview, Reimbursement, notifications and My AI Proofreader grant numbers (all use `build_filter_sql()` with `s.timecreated`). Survey tabs are unchanged.
+
 ## v0.8.4 - 2026-10-14
 
 ### Added

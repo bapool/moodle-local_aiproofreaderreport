@@ -196,3 +196,51 @@
 .aiproofreaderreport-responserate {
     font-weight: 600;
 }
+
+/* Printable stipend summary (printsummary.php). */
+.aiproofreaderreport-printnote {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.aiproofreaderreport-signatures {
+    margin-top: 2.5rem;
+}
+
+.aiproofreaderreport-signatures > div {
+    margin-bottom: 2rem;
+}
+
+.aiproofreaderreport-sigline {
+    display: inline-block;
+    width: 16rem;
+    border-bottom: 1px solid #000;
+    margin: 0 1.5rem 0 0.5rem;
+}
+
+@media print {
+    #page-local-aiproofreaderreport-printsummary .navbar,
+    #page-local-aiproofreaderreport-printsummary #page-header,
+    #page-local-aiproofreaderreport-printsummary #page-footer,
+    #page-local-aiproofreaderreport-printsummary footer,
+    #page-local-aiproofreaderreport-printsummary .drawer-toggles,
+    #page-local-aiproofreaderreport-printsummary .btn-footer-popover,
+    #page-local-aiproofreaderreport-printsummary #goto-top-link,
+    #page-local-aiproofreaderreport-printsummary .aiproofreaderreport-noprint {
+        display: none !important;
+    }
+
+    #page-local-aiproofreaderreport-printsummary #page,
+    #page-local-aiproofreaderreport-printsummary #page-wrapper {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+
+    #page-local-aiproofreaderreport-printsummary .aiproofreaderreport-table th {
+        position: static;
+    }
+
+    #page-local-aiproofreaderreport-printsummary .aiproofreaderreport-printtable tr {
+        page-break-inside: avoid;
+    }
+}
