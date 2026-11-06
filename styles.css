@@ -219,21 +219,23 @@
 }
 
 @media print {
-    #page-local-aiproofreaderreport-printsummary .navbar,
-    #page-local-aiproofreaderreport-printsummary #page-header,
-    #page-local-aiproofreaderreport-printsummary #page-footer,
-    #page-local-aiproofreaderreport-printsummary footer,
-    #page-local-aiproofreaderreport-printsummary .drawer-toggles,
-    #page-local-aiproofreaderreport-printsummary .btn-footer-popover,
-    #page-local-aiproofreaderreport-printsummary #goto-top-link,
-    #page-local-aiproofreaderreport-printsummary .aiproofreaderreport-noprint {
-        display: none !important;
+    /* The body#id prefix gives these rules enough weight to beat the theme
+       without the important flag, which Moodle stylelint rules forbid. */
+    body#page-local-aiproofreaderreport-printsummary .navbar,
+    body#page-local-aiproofreaderreport-printsummary #page-header,
+    body#page-local-aiproofreaderreport-printsummary #page-footer,
+    body#page-local-aiproofreaderreport-printsummary footer,
+    body#page-local-aiproofreaderreport-printsummary .drawer-toggles,
+    body#page-local-aiproofreaderreport-printsummary .btn-footer-popover,
+    body#page-local-aiproofreaderreport-printsummary #goto-top-link,
+    body#page-local-aiproofreaderreport-printsummary .aiproofreaderreport-noprint {
+        display: none;
     }
 
-    #page-local-aiproofreaderreport-printsummary #page,
-    #page-local-aiproofreaderreport-printsummary #page-wrapper {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
+    body#page-local-aiproofreaderreport-printsummary #page,
+    body#page-local-aiproofreaderreport-printsummary #page-wrapper {
+        margin-top: 0;
+        padding-top: 0;
     }
 
     #page-local-aiproofreaderreport-printsummary .aiproofreaderreport-table th {
