@@ -68,8 +68,9 @@ $to = userdate(strtotime($filters['dateto'] . ' 23:59:59'), $dateformat);
 // Use the saved quarter's name when the printed dates are that quarter.
 $quarter = report_manager::get_quarter();
 $label = '';
-if ($quarter->isset && $quarter->label !== ''
-        && $quarter->datefrom === $filters['datefrom'] && $quarter->dateto === $filters['dateto']) {
+$isquarter = $quarter->isset && $quarter->label !== ''
+    && $quarter->datefrom === $filters['datefrom'] && $quarter->dateto === $filters['dateto'];
+if ($isquarter) {
     $label = $quarter->label;
 }
 
@@ -86,7 +87,11 @@ echo html_writer::tag(
     get_string('printsummary_print', 'local_aiproofreaderreport'),
     ['type' => 'button', 'id' => 'aiproofreaderreport-printbtn', 'class' => 'btn btn-primary']
 );
-echo html_writer::link($returnurl, get_string('printsummary_back', 'local_aiproofreaderreport'), ['class' => 'btn btn-secondary ml-1']);
+echo html_writer::link(
+    $returnurl,
+    get_string('printsummary_back', 'local_aiproofreaderreport'),
+    ['class' => 'btn btn-secondary ml-1']
+);
 echo html_writer::end_div();
 
 echo html_writer::start_div('aiproofreaderreport-printsummary');
@@ -100,7 +105,11 @@ echo html_writer::tag('p', get_string('printsummary_period', 'local_aiproofreade
 if ($target > 0) {
     echo html_writer::tag('p', get_string('printsummary_goal', 'local_aiproofreaderreport', $target));
 }
-echo html_writer::tag('p', get_string('printsummary_basis', 'local_aiproofreaderreport'), ['class' => 'aiproofreaderreport-printnote']);
+echo html_writer::tag(
+    'p',
+    get_string('printsummary_basis', 'local_aiproofreaderreport'),
+    ['class' => 'aiproofreaderreport-printnote']
+);
 
 if (empty($rows)) {
     echo $OUTPUT->notification(get_string('notify_norecipients', 'local_aiproofreaderreport'), 'info');
@@ -133,9 +142,11 @@ if (empty($rows)) {
     echo html_writer::table($table);
 
     $sum = (object) ['teachers' => count($rows), 'graded' => $sumgraded, 'met' => $metcount];
-    echo html_writer::tag('p', html_writer::tag('strong', get_string('printsummary_totals', 'local_aiproofreaderreport', $sum)));
+    $totalstext = get_string('printsummary_totals', 'local_aiproofreaderreport', $sum);
+    echo html_writer::tag('p', html_writer::tag('strong', $totalstext));
     if ($target > 0) {
-        echo html_writer::tag('p', html_writer::tag('strong', get_string('printsummary_metcount', 'local_aiproofreaderreport', $sum)));
+        $mettext = get_string('printsummary_metcount', 'local_aiproofreaderreport', $sum);
+        echo html_writer::tag('p', html_writer::tag('strong', $mettext));
     }
 }
 
